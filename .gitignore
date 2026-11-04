@@ -1,0 +1,8 @@
+.env
+out/
+*.json
+*.log
+counter.*
+node_modules/
+package-lock.json
+__pycache__/
