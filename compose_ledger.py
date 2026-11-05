@@ -60,6 +60,8 @@ def blocks(path, prefix):
         if m: out[m.group(1).strip()] = blk.strip()
     return out
 cb, fb = blocks(os.path.join(C, "post.md"), "c"), blocks(os.path.join(F, "post.md"), "f")
+DW = os.path.join(OUT, "dhf")
+db = blocks(os.path.join(DW, "post.md"), "d") if os.path.exists(os.path.join(DW, "post.md")) else {}
 pick = lambda bl, start: next((v for k, v in bl.items() if k.startswith(start)), None)
 order = [(fb, "🍯 The inflation pie"), (fb, "🔄"), (fb, "💵"),
          (cb, "📊"), (cb, "🍯 How much"), (cb, "🌳"), (cb, "🫙"), (cb, "⏱️"), (cb, "🕸️"), (cb, "🏆"),
@@ -73,11 +75,11 @@ secs = [s.replace("## 📊 The payout in numbers", "## 📊 The 65%: the posts p
 
 # ---------- images ----------
 imgs = ["0_cover.png"]
-for src, pre in ((C, "c"), (F, "f")):
+for src, pre in ((C, "c"), (F, "f")) + (((DW, "d"),) if db else ()):
     for fn in sorted(os.listdir(src)):
         if fn.endswith(".png") and not fn.startswith("0_"):
             shutil.copy(os.path.join(src, fn), os.path.join(OUT, pre + fn)); imgs.append(pre + fn)
-used = set(re.findall(r"IMG:(\S+)", "\n".join(secs)))
+used = set(re.findall(r"IMG:(\S+)", "\n".join(secs + list(db.values()))))
 imgs = [i for i in imgs if i == "0_cover.png" or i in used]
 
 # ---------- cover ----------
@@ -120,7 +122,7 @@ footer = ["This bee is a 🤖 **bot**, built with love 💛 by @hive3 for every 
 parts = ["\n\n".join(intro), quadra,
          "# 🌊 Part 1 · The flows", *secs[:3],
          "# 🍯 Part 2 · The 65% for content", *[s for s in secs[3:] if not s.startswith(("## 🏛️", "## 🏦"))],
-         "# 🏛️ Part 3 · The keepers", *[s for s in secs if s.startswith(("## 🏛️", "## 🏦"))],
+         "# 🏛️ Part 3 · The keepers", *[s for s in secs if s.startswith(("## 🏛️", "## 🏦"))], *list(db.values()),
          method, "\n\n".join(footer)]
 open(os.path.join(OUT, "post.md"), "w").write("\n\n---\n\n".join(parts) + "\n")
 desc = f"Hive {MONTH}: where every new HIVE went. Inflation, posts, comments, stakers, witnesses, DHF, HBD. 🐝"
