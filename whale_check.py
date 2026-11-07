@@ -23,7 +23,8 @@ cur.execute("""SELECT table_name, column_name FROM information_schema.columns WH
 COLS = C.defaultdict(list)
 for t, c in cur.fetchall(): COLS[t].append(c)
 def table(*words, avoid=()):
-    for t in sorted(COLS, key=len):
+    # prefer views that carry a timestamp column (HAFSQL has both bare tables and *_view with timestamp)
+    for t in sorted(COLS, key=lambda t: (not any('timestamp' in c for c in COLS[t]), len(t))):
         if all(w in t for w in words) and not any(a in t for a in avoid): return t
     return None
 def col(t, *cands):
@@ -54,7 +55,7 @@ for w in whales: print(f'  {w:<20} {cur_bal.get(w)}')
 
 # ---------- 1b. who distributes the rewards: biggest upvoters by rshares, last 30 days (own stake + delegations received) ----------
 VT = 'operation_effective_comment_vote_view'
-d30 = (dt.datetime.utcnow() - dt.timedelta(days=30)).strftime('%Y-%m-%d')
+d30 = (dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - dt.timedelta(days=30)).strftime('%Y-%m-%d')
 dist = q(f'SELECT voter, SUM(rshares) AS rs, COUNT(*) FROM hafsql.{VT} WHERE timestamp >= %s AND rshares > 0 '
          f'GROUP BY voter ORDER BY rs DESC LIMIT %s', (d30, TOP))
 tot_rs = q(f'SELECT SUM(rshares) FROM hafsql.{VT} WHERE timestamp >= %s AND rshares > 0', (d30,))
@@ -73,7 +74,8 @@ def flows(view_words, from_words, to_words, extra_avoid=()):
     if not t: print('  [no view for', view_words, ']'); return None, None, None, None, None
     return t, col(t, *from_words), col(t, *to_words), col(t, 'amount', 'vesting_shares', 'reward'), col(t, 'symbol', 'nai', 'asset')
 
-TS = lambda t: col(t, 'timestamp', 'created_at', 'block_time')
+# operation_*_table views have no timestamp: HAF op id = block_num << 32; block time ≈ HF23 (block 41818752, 2020-03-20 14:00 UTC) + 3 s/block
+TS = lambda t: col(t, 'timestamp', 'created_at', 'block_time') or "to_timestamp(1584712800 + 3 * ((id >> 32) - 41818752))"
 out = {w: {} for w in whales}
 
 # ---------- 2. power ups ----------

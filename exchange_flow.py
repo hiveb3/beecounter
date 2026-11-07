@@ -23,7 +23,8 @@ cur.execute("SELECT table_name, column_name FROM information_schema.columns WHER
 COLS = C.defaultdict(list)
 for t, c in cur.fetchall(): COLS[t].append(c)
 def table(*w, avoid=()):
-    for t in sorted(COLS, key=len):
+    # prefer views that carry a timestamp column (HAFSQL has both bare tables and *_view with timestamp)
+    for t in sorted(COLS, key=lambda t: (not any('timestamp' in c for c in COLS[t]), len(t))):
         if all(x in t for x in w) and not any(a in t for a in avoid): return t
 def col(t, *cands):
     for c in cands:
@@ -33,7 +34,8 @@ def col(t, *cands):
             if c in x: return x
 T = table('transfer', avoid=('vesting', 'savings', 'recurrent', 'escrow', 'convert', 'fill', 'route'))
 F, TO, AM, SYM = col(T, 'from_account', 'from'), col(T, 'to_account', 'to'), col(T, 'amount'), col(T, 'symbol', 'nai', 'asset')
-TS = col(T, 'timestamp', 'created_at', 'block_time')
+# operation_*_table views have no timestamp: HAF op id = block_num << 32; block time ≈ HF23 (block 41818752, 2020-03-20 14:00 UTC) + 3 s/block
+TS = col(T, 'timestamp', 'created_at', 'block_time') or "to_timestamp(1584712800 + 3 * ((id >> 32) - 41818752))"
 BAL = table('balances') or table('balance'); ACC, VESTS = col(BAL, 'account_name', 'account', 'name'), col(BAL, 'vests', 'vesting_shares')
 print(f'transfers view: {T} ({F}, {TO}, {AM}, {SYM}, {TS}) · balances: {BAL} ({ACC}, {VESTS})')
 out = {}
