@@ -52,6 +52,22 @@ cur_bal = {r[0]: r[1:] for r in q(f'SELECT {acc_c}, {vests_c}{", " + hp_c if hp_
 print(f'\n=== TOP {TOP} ACCOUNTS BY OWN STAKE (today) ===')
 for w in whales: print(f'  {w:<20} {cur_bal.get(w)}')
 
+# ---------- 1b. who distributes the rewards: biggest upvoters by rshares, last 30 days (own stake + delegations received) ----------
+VT = 'operation_effective_comment_vote_view'
+d30 = (dt.datetime.utcnow() - dt.timedelta(days=30)).strftime('%Y-%m-%d')
+dist = q(f'SELECT voter, SUM(rshares) AS rs, COUNT(*) FROM hafsql.{VT} WHERE timestamp >= %s AND rshares > 0 '
+         f'GROUP BY voter ORDER BY rs DESC LIMIT %s', (d30, TOP))
+tot_rs = q(f'SELECT SUM(rshares) FROM hafsql.{VT} WHERE timestamp >= %s AND rshares > 0', (d30,))
+tot_rs = float(tot_rs[0][0] or 1) if tot_rs else 1
+print(f'\n=== TOP {TOP} REWARD DISTRIBUTORS (share of all upvote power, last 30 days) ===')
+acc = 0
+for v, rs, n in dist:
+    acc += float(rs)
+    print(f'  {v:<20} {float(rs)/tot_rs:6.2%}  (cumulative {acc/tot_rs:6.1%})  {n} votes  {"[also a whale]" if v in whales else ""}')
+whales += [v for v, _, _ in dist if v not in whales]
+cur_bal.update({r[0]: r[1:] for r in q(f'SELECT {acc_c}, {vests_c}{", " + hp_c if hp_c else ""} FROM hafsql.{BAL} WHERE {acc_c} = ANY(%s)', (whales,))})
+print(f'→ analysing {len(whales)} accounts: biggest stakes + biggest reward distributors')
+
 def flows(view_words, from_words, to_words, extra_avoid=()):
     t = table(*view_words, avoid=('fill', 'withdraw_route') + extra_avoid)
     if not t: print('  [no view for', view_words, ']'); return None, None, None, None, None
