@@ -25,7 +25,7 @@ ART = {'art', 'abstract', 'abstractart', 'digitalart', 'aiart', 'ai', 'nft', 'nf
 def words(t): return len(re.findall(r"[A-Za-zÀ-ÿ]{2,}", re.sub(r'!\[[^\]]*\]\([^)]*\)|<[^>]+>|https?://\S+', ' ', t or '')))
 info = {}
 for a in authors:
-    cur.execute("""SELECT permlink, title, body, json_metadata, total_payout_value + curator_payout_value FROM hafsql.comments
+    cur.execute("""SELECT permlink, title, body, json_metadata, total_payout_value FROM hafsql.comments
                    WHERE author=%s AND parent_author='' AND created >= %s AND created < %s::date + 1 AND NOT deleted""", (a, FROM, TO))
     P = cur.fetchall()
     if not P: continue
