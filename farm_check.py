@@ -35,7 +35,7 @@ while d <= end:
     for a, pl, title, created, cat, tpv, cpv, bpv, net, bens, deleted in posts:
         if deleted: continue
         cr = created.astimezone(dt.timezone.utc).replace(tzinfo=None) if created.tzinfo else created
-        p = float(tpv or 0); pay[a] += p; nposts[a] += 1  # HAFSQL tpv already includes curators
+        p = float(tpv or 0) - float(bpv or 0); pay[a] += p; nposts[a] += 1  # HAFSQL tpv = author+curators+beneficiaries
         vs = byp.get((a, pl), []); pos = sum(rs for _, rs, _ in vs if rs > 0)
         for voter, rs, ts in vs:
             if rs <= 0: continue

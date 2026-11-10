@@ -21,7 +21,7 @@ if not BODY: raise SystemExit(f'hafsql.comments has no body column: {sorted(cols
 # authors: the top N by payout in the farm report (the full list is the 75% group if TOP is large enough)
 authors = [a for a, *_ in FARM['top']][:TOP] if len(FARM['top']) >= TOP else None
 if authors is None or len(authors) < TOP:
-    cur.execute(f"""SELECT author, SUM(total_payout_value) p FROM hafsql.comments
+    cur.execute(f"""SELECT author, SUM(total_payout_value - beneficiary_payout_value) p FROM hafsql.comments
                     WHERE parent_author='' AND created >= %s AND created < %s::date + 1 AND NOT deleted
                     GROUP BY author ORDER BY p DESC LIMIT %s""", (FROM, TO, TOP))
     authors = [r[0] for r in cur.fetchall()]
@@ -37,7 +37,7 @@ def shingles(t, k=8):
 
 rep, sample = {}, []
 for a in authors:
-    cur.execute(f"""SELECT permlink, title, {BODY}, {META or "''"}, total_payout_value FROM hafsql.comments
+    cur.execute(f"""SELECT permlink, title, {BODY}, {META or "''"}, total_payout_value - beneficiary_payout_value FROM hafsql.comments
                     WHERE author=%s AND parent_author='' AND created >= %s AND created < %s::date + 1 AND NOT deleted ORDER BY created""",
                 (a, FROM, TO))
     posts = cur.fetchall()
