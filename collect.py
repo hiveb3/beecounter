@@ -87,7 +87,7 @@ def analyze(days):
         if half is None and c >= tot / 2: half = i + 1
         if i % max(n // 100, 1) == 0 or i == n - 1: cum.append([i + 1, round(c / tot * 100, 1)])
     pays = [r["pay"] for r in P]
-    bk = [(0, .01), (.01, .5), (.5, 1), (1, 2), (2, 5), (5, 10), (10, 25), (25, 50), (50, 1e9)]
+    bk = [(0, .02), (.02, .5), (.5, 1), (1, 2), (2, 5), (5, 10), (10, 25), (25, 50), (50, 1e9)]
     vsum = sum(x[0] for x in vt.values()); svt = sorted(vt.items(), key=lambda i: -i[1][0])
     # day one vs final payout
     tp = sum(r["pos"] for r in P); Hc, acc = [], 0
@@ -112,17 +112,17 @@ def analyze(days):
     return dict(
         days=len(daily), nPosts=len(P), nAuthors=n, nVoters=len(vt), votes=sum(r["nup"] for r in P),
         tot=round(tot, 2), ben=round(totb, 2), med=round(statistics.median(pays), 3),
-        zero=sum(1 for x in pays if x < .01), daily=daily,
+        zero=sum(1 for x in pays if x < .02), daily=daily,   # dust: Hive pays nothing below ~0.02 HBD
         buckets=[[f"{lo}-{hi}", sum(1 for x in pays if lo <= x < hi)] for lo, hi in bk],
         half=half, bottomHalf=round(sum(av[n // 2:]) / tot * 100, 1), top10a=round(sum(av[:n // 10]) / tot, 3),
         top10v=round(sum(x[1][0] for x in svt[:10]) / vsum, 3), top50v=round(sum(x[1][0] for x in svt[:50]) / vsum, 3),
-        cum=cum, topAuthors=[[a, round(x, 2), sum(1 for r in P if r["a"] == a)] for a, x in ap.most_common(15)],
-        topVoters=[[v, round(x[0], 2), x[1], len(va[v]), round(x[2] / x[0], 3) if x[0] else 0] for v, x in svt[:20]],
-        lateVoters=[[v, round(x[2], 2), round(x[2] / x[0], 3)] for v, x in sorted(vt.items(), key=lambda i: -i[1][2])[:15]],
+        cum=cum, topAuthors=[[a, round(x, 2), sum(1 for r in P if r["a"] == a)] for a, x in ap.most_common(25)],
+        topVoters=[[v, round(x[0], 2), x[1], len(va[v]), round(x[2] / x[0], 3) if x[0] else 0] for v, x in svt[:25]],
+        lateVoters=[[v, round(x[2], 2), round(x[2] / x[0], 3)] for v, x in sorted(vt.items(), key=lambda i: -i[1][2])[:25]],
         broad=[[v, round(vt[v][0], 2), vt[v][1], len(s)] for v, s in sorted(va.items(), key=lambda i: -len(i[1]))[:10]],
-        topPay=[sm(r) for r in sorted(P, key=lambda r: -r["pay"])[:10]],
-        crowd=[sm(r) for r in sorted(P, key=lambda r: -r["nup"])[:10]],
-        rest=[sm(r) for r in sorted([r for r in P if ap[r["a"]] < q3], key=lambda r: -r["nup"])[:12]],
+        topPay=[sm(r) for r in sorted(P, key=lambda r: -r["pay"])[:15]],
+        crowd=[sm(r) for r in sorted(P, key=lambda r: -r["nup"])[:15]],
+        rest=[sm(r) for r in sorted([r for r in P if ap[r["a"]] < q3], key=lambda r: -r["nup"])[:15]],
         comm=sorted([[c, x[0], round(x[1], 2)] for c, x in comm.items()], key=lambda t: -t[2])[:12],
         edges=[[a, b, round(x, 2)] for (a, b), x in edges.most_common(50)], recip=recip,
         topBen=[[a, round(x[0], 2), x[1]] for a, x in sorted(ben.items(), key=lambda i: -i[1][0])[:15]],
