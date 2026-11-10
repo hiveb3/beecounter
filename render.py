@@ -27,6 +27,7 @@ random.seed(FROM + TO)
 pick = lambda *xs: random.choice(xs)
 money = lambda x: f"{x:,.2f}"
 pct = lambda a, b: f"{a / b * 100:.0f}%" if b else "0%"
+MIN_USD = float(os.environ.get("BEECOUNTER_MIN_USD", "1"))   # payout cutoff for the rankings (idea by @antisocialist)
 
 # ---------- community names ----------
 def community_titles(ids):
@@ -200,17 +201,17 @@ txt = (f"- Within **1 hour** a post had received **{h.get(1, 0):.0f}%** of its f
        f"- For a typical post earning at least $1, **{d['f24med'] * 100:.1f}%** of its final upvote power was already there after 24 hours.\n" +
        f"- Still, **≈ ${d['gainAfter24']:,.0f}** of rewards arrived after day one.")
 L.append(txt)
-lvt = [x for x in d["lateVoters"] if x[0] not in SELF][:10]
+lvt = [x for x in d["lateVoters"] if x[0] not in SELF and x[1] >= MIN_USD][:10]
 if lvt:
     L.append("**🐝 Late pollinators: the curators who vote after day one** (idea by @antisocialist)\n\n"
              "Curation rewards are split by voting time: votes in the **first 24 hours** earn the full curation share, on **days 2–3** half, and from **day 4 until the last 12 hours** only an eighth; in the last 12 hours a vote can no longer raise the payout. The curation a late voter gives up goes back to the reward pool, while their vote still raises the post's payout for the author and for everyone who voted before. In short, late voters **do a favor to the author and to every earlier curator**. Here are the ones who gave the most honey after day one:\n\n" +
              table(lvt, [("Voter", lambda x: "@" + x[0], 0), ("≈ $ given after 24h", lambda x: money(x[1]), 1), ("Share of their votes after 24h", lambda x: f"{x[2] * 100:.0f}%", 1)]))
-late = uniq([r for r in d["late"] if r["a"] not in SELF])[:10]
+late = uniq([r for r in d["late"] if r["a"] not in SELF and r["pay"] >= MIN_USD])[:10]
 if late:
     L.append("**🌸 Late bloomers**: poor after 24 hours, well paid in the end\n\n" + table(late, [
         ("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0),
         ("≈ $ after 24h", lambda r: money(r["e24"]), 1), ("$ paid", lambda r: money(r["pay"]), 1)]))
-drops = uniq([r for r in d["drops"] if r["a"] not in SELF])[:10]
+drops = uniq([r for r in d["drops"] if r["a"] not in SELF and r["e24"] - r["pay"] >= MIN_USD])[:10]
 if drops:
     L.append("**🍂 Shrunk before payout**: worth more after 24 hours than what was finally paid (downvotes or removed votes)\n\n" + table(drops, [
         ("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0),
@@ -221,16 +222,16 @@ L.append(f"The strongest single link was **@{e0[0]} → @{e0[1]}** (≈ ${e0[2]:
          (f"The most balanced two-way pair was **@{rc[0][0]} ⇄ @{rc[0][1]}** (≈ ${rc[0][2]:,.2f} one way, ${rc[0][3]:,.2f} the other). 🍯" if rc else ""))
 if not DAILY:
     L.append("---\n\n## 📅 Day by day\n\n" + img("6_daily.png"))
-    ta = [a for a in d["topAuthors"] if a[0] not in SELF][:20]
+    ta = [a for a in d["topAuthors"] if a[0] not in SELF and a[1] >= MIN_USD][:20]
     L.append("**Top authors of the period** 🏆\n\n" + table(ta, [("Author", lambda a: "@" + a[0], 0), ("Posts", lambda a: f"{a[2]:,}", 1), ("$ paid", lambda a: money(a[1]), 1)]))
 cols = lambda first: [("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0)] + (
     [("$ paid", lambda r: money(r["pay"]), 1), ("Voters", lambda r: f"{r['nv']:,}", 1)] if first else
     [("Voters", lambda r: f"{r['nv']:,}", 1), ("$ paid", lambda r: money(r["pay"]), 1)])
-L.append("---\n\n## 🏆 Top posts\n\n**Biggest jars** 🍯\n\n" + table([r for r in d["topPay"] if r["a"] not in SELF][:10], cols(True)))
+L.append("---\n\n## 🏆 Top posts\n\n**Biggest jars** 🍯\n\n" + table([r for r in d["topPay"] if r["a"] not in SELF and r["pay"] >= MIN_USD][:10], cols(True)))
 L.append("**Crowd favorites** 🐝 (most voters)\n\n" + table([r for r in d["crowd"] if r["a"] not in SELF][:10], cols(False)))
 L.append("## 🌸 For the rest of us\n\nPosts by authors **outside the top 25% of earners**, ranked by **how many people voted**:\n\n" +
          table([r for r in d["rest"] if r["a"] not in SELF][:10], cols(False)) + "\n\nLots of love, little honey: go give them a visit! 🐝💛")
-tb = d["topBen"][:10]
+tb = [b for b in d["topBen"] if b[1] >= MIN_USD][:10]
 L.append("---\n\n## 🎁 Beneficiaries\n\n" + f"**{d['postsBen']:,} posts ({pct(d['postsBen'], N)})** shared their reward with **{d['nBenAcc']:,} accounts**, "
          f"for **≈ ${d['ben']:,.2f}** in total.\n\n" + table(tb, [("Beneficiary", lambda b: ("@" + b[0]) + (" 🔥" if b[0] == "null" else ""), 0),
          ("≈ $ received", lambda b: money(b[1]), 1), ("Posts", lambda b: f"{b[2]:,}", 1)]))
@@ -240,7 +241,7 @@ if ra and not DAILY:
     L.append("**🔁 Who uses @reward.app the most?** It is a service that pays post rewards out as liquid tokens right away, for a fee. "
              f"In this period **{rt[0]:,} authors** set it as beneficiary on **{rt[1]:,} posts**, sending it **≈ ${rt[2]:,.2f}**. The top 10:\n\n" +
              table(ra, [("Author", lambda x: "@" + x[0], 0), ("Posts", lambda x: f"{x[2]:,}", 1), ("Avg. share", lambda x: f"{x[3]:.0f}%", 1), ("≈ $ to @reward.app", lambda x: money(x[1]), 1)]))
-dv = d["topDV"][:10]; hit = [x for x in d["topHit"]][:3]
+dv = [x for x in d["topDV"] if x[2] >= MIN_USD][:10]; hit = [x for x in d["topHit"]][:3]
 L.append("---\n\n## 👎 Downvotes\n\n" + "Downvotes are part of how Hive works. Just the numbers, no judgment:\n\n"
          f"- **{d['down']:,} downvotes** from **{d['nDownvoters']:,} accounts** hit **{d['postsHit']:,} posts** and removed an estimated **≈ ${d['removed']:,.2f}**.\n"
          f"- **{d['zeroed']:,} posts that had upvotes ended at zero.**\n\n" +
@@ -253,7 +254,8 @@ L.append("---\n\n## 🔬 How this bee counts\n\n"
          f"- All top-level posts created on **{CREATED} (UTC)**, with all their upvotes, read from the public **HAFSQL** database by @mahdiyari. No public API node is hammered.\n"
          "- Rewards are the **final payouts** recorded on the chain (author + curator share, USD value). Beneficiaries are counted separately.\n"
          "- \"$ given\", \"≈ $ after 24h\" and \"$ removed\" are **estimates**, based on each vote's rshares.\n"
-         "- Comments and Hive-Engine tokens are not counted. Accounts of The Hive Tree are left out of the rankings.")
+         "- Comments and Hive-Engine tokens are not counted. Accounts of The Hive Tree are left out of the rankings.\n"
+         f"- Rankings show at most 10–20 names and leave out anyone below **${MIN_USD:,.2f}** (payout cutoff suggested by @antisocialist).")
 L.append("---\n\nThis bee is a 🤖 **bot**, built with love 💛 by @hive3 for every bee in the Hive 🐝🌼🍯. It never votes and never comments: it only counts, so the whole hive can see where the honey flows. Ideas and corrections are welcome in the comments, a human reads them: @hive3. 🌳")
 L.append("🧩 **Open source & AI-generated**: every script that builds this report is public on [GitHub](https://github.com/hiveb3/beecounter) (MIT license), written with an AI (Claude) and reviewed by a human. Anyone can check the numbers, run it, fork it or keep it alive. 🐝")
 L.append("<sub>🔥 **100% of this post's rewards are burned** (beneficiary @null): pure data for the hive, nothing to farm. "
