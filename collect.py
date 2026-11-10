@@ -41,7 +41,8 @@ def analyze(days):
         for a, pl, title, created, cat, tpv, cpv, bpv, net, bens, deleted in posts:
             if deleted: continue
             cr = created.astimezone(dt.timezone.utc).replace(tzinfo=None) if created.tzinfo else created
-            pay = float(tpv or 0) + float(cpv or 0); b = float(bpv or 0)
+            # HAFSQL total_payout_value already includes the curator share (unlike hivemind's, which is author-only): don't add cpv again
+            pay = float(tpv or 0); b = float(bpv or 0)
             try: L = json.loads(bens) if isinstance(bens, str) else (bens or [])
             except Exception: L = []
             w = sum(x.get("weight", 0) for x in L)
