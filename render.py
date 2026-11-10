@@ -57,7 +57,7 @@ def save(f, name):
 IMGS = []
 
 # 1 payout distribution
-lab = ["< $0.01", "$0.01–0.50", "$0.50–1", "$1–2", "$2–5", "$5–10", "$10–25", "$25–50", "> $50"]
+lab = ["< $0.02", "$0.02–0.50", "$0.50–1", "$1–2", "$2–5", "$5–10", "$10–25", "$25–50", "> $50"]
 v = [b[1] for b in d["buckets"]]
 f, ax = fig(); bars = ax.bar(lab, v, color=["#B5651D"] + [HONEY] * 8, edgecolor=DARK, linewidth=.6)
 for b, x in zip(bars, v): ax.text(b.get_x() + b.get_width() / 2, x + max(v) * .01, f"{x:,}", ha="center", fontsize=9, fontweight="bold")
@@ -180,11 +180,11 @@ L.append("---\n\n## 📊 The payout in numbers\n\n| | |\n|---|---:|\n"
          f"| 📝 Posts paid out | **{N:,}** |\n| ✍️ Different authors | **{d['nAuthors']:,}** |\n"
          f"| 🗳️ Upvotes | **{d['votes']:,}** |\n| 🐝 Different voters | **{d['nVoters']:,}** |\n"
          f"| 🍯 Paid to authors + curators | **≈ ${d['tot']:,.0f}** |\n| 🎁 Paid to beneficiaries | **≈ ${d['ben']:,.0f}** |\n"
-         f"| ⚖️ Median post | **${d['med']:.2f}** |\n| 🥀 Posts paid zero (< $0.01) | **{z:,} ({pct(z, N)})** |\n"
+         f"| ⚖️ Median post | **${d['med']:.2f}** |\n| 🥀 Posts paid zero (< $0.02) | **{z:,} ({pct(z, N)})** |\n"
          f"| 👎 Downvotes | **{d['down']:,}** on {d['postsHit']:,} posts |")
 L.append("---\n\n## 🍯 How much did each post earn?\n\n" + img("1_payout_distribution.png"))
 L.append(f"- **{low:,} posts ({pct(low, N)}) got less than $0.50.**\n- **{big:,} posts went above $10**, and **{top:,} above $25**.\n"
-         f"- **{z:,} posts ({pct(z, N)}) were paid zero.** Hive doesn't pay out dust, and posts that declined payout count as zero too. 🐝")
+         f"- **{z:,} posts ({pct(z, N)}) were paid zero.** Hive doesn't pay out dust (anything below ≈ 0.02 HBD rounds down to zero, because amounts have only 3 decimals), and posts that declined payout count as zero too. 🐝")
 L.append("---\n\n## 🌳 The honey curve\n\n" + img("3_honey_curve.png"))
 L.append(f"- **{d['half']:,} authors ({pct(d['half'], d['nAuthors'])}) received half of all the rewards.**\n"
          f"- **The bottom half of authors shared just {d['bottomHalf']}%.**\n- The top 10% of authors took **{d['top10a'] * 100:.0f}%**.")
@@ -194,20 +194,23 @@ L.append(f"- **The top 10 voters gave {d['top10v'] * 100:.0f}%** of all rewards,
          f"- @{app[0]} was the biggest honey-giver: **≈ ${app[1]:,.0f} across {app[3]:,} authors**.\n"
          "- **Busiest wings** (most different authors voted): " + ", ".join(f"@{b[0]} ({b[3]:,})" for b in br) + ". 🌼")
 L.append("---\n\n## ⏱️ Day one vs. payout day\n\n" + img("4_time_curve.png"))
-lv = [x for x in d["lateVoters"] if x[0] not in SELF and x[2] >= .5][:5]
 txt = (f"- Within **1 hour** a post had received **{h.get(1, 0):.0f}%** of its final upvote power, within **24 hours** "
        f"**{h.get(25, 0):.0f}%**, within **3 days** **{h.get(73, 0):.0f}%**.\n" +
        (f"- In other words, **Hive is mostly a 24-hour game**: only **{100 - h.get(25, 0):.0f}% of the honey arrived after day one**. 🐝\n" if h.get(25, 0) >= 85 else f"- So **{100 - h.get(25, 0):.0f}% of the honey arrived after day one**: what you see after 24 hours is not the end of the story. 🐝\n") +
        f"- For a typical post earning at least $1, **{d['f24med'] * 100:.1f}%** of its final upvote power was already there after 24 hours.\n" +
        f"- Still, **≈ ${d['gainAfter24']:,.0f}** of rewards arrived after day one.")
-if lv: txt += "\n- **Late pollinators** (most of their honey given after day one): " + ", ".join(f"@{x[0]} ({x[2] * 100:.0f}% late)" for x in lv) + "."
 L.append(txt)
-late = uniq([r for r in d["late"] if r["a"] not in SELF])[:5]
+lvt = [x for x in d["lateVoters"] if x[0] not in SELF][:10]
+if lvt:
+    L.append("**🐝 Late pollinators: the curators who vote after day one** (idea by @antisocialist)\n\n"
+             "Curation rewards are split by voting time: votes in the **first 24 hours** earn the full curation share, on **days 2–3** half, and from **day 4 until the last 12 hours** only an eighth; in the last 12 hours a vote can no longer raise the payout. The curation a late voter gives up goes back to the reward pool, while their vote still raises the post's payout for the author and for everyone who voted before. In short, late voters **do a favor to the author and to every earlier curator**. Here are the ones who gave the most honey after day one:\n\n" +
+             table(lvt, [("Voter", lambda x: "@" + x[0], 0), ("≈ $ given after 24h", lambda x: money(x[1]), 1), ("Share of their votes after 24h", lambda x: f"{x[2] * 100:.0f}%", 1)]))
+late = uniq([r for r in d["late"] if r["a"] not in SELF])[:10]
 if late:
     L.append("**🌸 Late bloomers**: poor after 24 hours, well paid in the end\n\n" + table(late, [
         ("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0),
         ("≈ $ after 24h", lambda r: money(r["e24"]), 1), ("$ paid", lambda r: money(r["pay"]), 1)]))
-drops = uniq([r for r in d["drops"] if r["a"] not in SELF])[:5]
+drops = uniq([r for r in d["drops"] if r["a"] not in SELF])[:10]
 if drops:
     L.append("**🍂 Shrunk before payout**: worth more after 24 hours than what was finally paid (downvotes or removed votes)\n\n" + table(drops, [
         ("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0),
@@ -218,16 +221,16 @@ L.append(f"The strongest single link was **@{e0[0]} → @{e0[1]}** (≈ ${e0[2]:
          (f"The most balanced two-way pair was **@{rc[0][0]} ⇄ @{rc[0][1]}** (≈ ${rc[0][2]:,.2f} one way, ${rc[0][3]:,.2f} the other). 🍯" if rc else ""))
 if not DAILY:
     L.append("---\n\n## 📅 Day by day\n\n" + img("6_daily.png"))
-    ta = [a for a in d["topAuthors"] if a[0] not in SELF][:10]
+    ta = [a for a in d["topAuthors"] if a[0] not in SELF][:20]
     L.append("**Top authors of the period** 🏆\n\n" + table(ta, [("Author", lambda a: "@" + a[0], 0), ("Posts", lambda a: f"{a[2]:,}", 1), ("$ paid", lambda a: money(a[1]), 1)]))
 cols = lambda first: [("Post", lambda r: link(r), 0), ("Author", lambda r: "@" + r["a"], 0)] + (
     [("$ paid", lambda r: money(r["pay"]), 1), ("Voters", lambda r: f"{r['nv']:,}", 1)] if first else
     [("Voters", lambda r: f"{r['nv']:,}", 1), ("$ paid", lambda r: money(r["pay"]), 1)])
-L.append("---\n\n## 🏆 Top posts\n\n**Biggest jars** 🍯\n\n" + table([r for r in d["topPay"] if r["a"] not in SELF][:5], cols(True)))
-L.append("**Crowd favorites** 🐝 (most voters)\n\n" + table([r for r in d["crowd"] if r["a"] not in SELF][:5], cols(False)))
+L.append("---\n\n## 🏆 Top posts\n\n**Biggest jars** 🍯\n\n" + table([r for r in d["topPay"] if r["a"] not in SELF][:10], cols(True)))
+L.append("**Crowd favorites** 🐝 (most voters)\n\n" + table([r for r in d["crowd"] if r["a"] not in SELF][:10], cols(False)))
 L.append("## 🌸 For the rest of us\n\nPosts by authors **outside the top 25% of earners**, ranked by **how many people voted**:\n\n" +
-         table([r for r in d["rest"] if r["a"] not in SELF][:5], cols(False)) + "\n\nLots of love, little honey: go give them a visit! 🐝💛")
-tb = d["topBen"][:8]
+         table([r for r in d["rest"] if r["a"] not in SELF][:10], cols(False)) + "\n\nLots of love, little honey: go give them a visit! 🐝💛")
+tb = d["topBen"][:10]
 L.append("---\n\n## 🎁 Beneficiaries\n\n" + f"**{d['postsBen']:,} posts ({pct(d['postsBen'], N)})** shared their reward with **{d['nBenAcc']:,} accounts**, "
          f"for **≈ ${d['ben']:,.2f}** in total.\n\n" + table(tb, [("Beneficiary", lambda b: ("@" + b[0]) + (" 🔥" if b[0] == "null" else ""), 0),
          ("≈ $ received", lambda b: money(b[1]), 1), ("Posts", lambda b: f"{b[2]:,}", 1)]))
@@ -237,7 +240,7 @@ if ra and not DAILY:
     L.append("**🔁 Who uses @reward.app the most?** It is a service that pays post rewards out as liquid tokens right away, for a fee. "
              f"In this period **{rt[0]:,} authors** set it as beneficiary on **{rt[1]:,} posts**, sending it **≈ ${rt[2]:,.2f}**. The top 10:\n\n" +
              table(ra, [("Author", lambda x: "@" + x[0], 0), ("Posts", lambda x: f"{x[2]:,}", 1), ("Avg. share", lambda x: f"{x[3]:.0f}%", 1), ("≈ $ to @reward.app", lambda x: money(x[1]), 1)]))
-dv = d["topDV"][:5]; hit = [x for x in d["topHit"]][:3]
+dv = d["topDV"][:10]; hit = [x for x in d["topHit"]][:3]
 L.append("---\n\n## 👎 Downvotes\n\n" + "Downvotes are part of how Hive works. Just the numbers, no judgment:\n\n"
          f"- **{d['down']:,} downvotes** from **{d['nDownvoters']:,} accounts** hit **{d['postsHit']:,} posts** and removed an estimated **≈ ${d['removed']:,.2f}**.\n"
          f"- **{d['zeroed']:,} posts that had upvotes ended at zero.**\n\n" +
