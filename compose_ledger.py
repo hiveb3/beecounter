@@ -33,7 +33,7 @@ stab = next((p[3] for p in pay if p[0] == "hbdstabilizer"), 0)
 pc = lambda x: f"{x / tot * 100:.1f}%"
 rows = [
     ("✍️ Post authors + curators + beneficiaries", posts_hive, "posts paid out this month, analysed below"),
-    ("💬 Comments (authors + curators + beneficiaries)", comments_hive, "everything paid to comments"),
+    ("💬 Comments (authors + curators + beneficiaries)", comments_hive, "everything paid to comments, see 💬 below" if os.path.exists(os.path.join(OUT, "comments", "post.md")) else "everything paid to comments"),
     ("🐝 HP stakers (est.)", stake, "added to the HP pool, for every HP holder"),
     ("🏛️ Witnesses", wit, f"{fd['n_witnesses']} block producers"),
     ("🏦 DHF treasury", dhf, f"paid as {dhf_hbd:,.0f} HBD"),
@@ -62,6 +62,8 @@ def blocks(path, prefix):
 cb, fb = blocks(os.path.join(C, "post.md"), "c"), blocks(os.path.join(F, "post.md"), "f")
 DW = os.path.join(OUT, "dhf")
 db = blocks(os.path.join(DW, "post.md"), "d") if os.path.exists(os.path.join(DW, "post.md")) else {}
+CM = os.path.join(OUT, "comments")
+mb = blocks(os.path.join(CM, "post.md"), "m") if os.path.exists(os.path.join(CM, "post.md")) else {}
 pick = lambda bl, start: next((v for k, v in bl.items() if k.startswith(start)), None)
 order = [(fb, "🍯 The inflation pie"), (fb, "🔄"), (fb, "💵"),
          (cb, "📊"), (cb, "🍯 How much"), (cb, "🌳"), (cb, "🫙"), (cb, "⏱️"), (cb, "🕸️"), (cb, "🏆"),
@@ -75,11 +77,11 @@ secs = [s.replace("## 📊 The payout in numbers", "## 📊 The 65%: the posts p
 
 # ---------- images ----------
 imgs = ["0_cover.png"]
-for src, pre in ((C, "c"), (F, "f")) + (((DW, "d"),) if db else ()):
+for src, pre in ((C, "c"), (F, "f")) + (((DW, "d"),) if db else ()) + (((CM, "m"),) if mb else ()):
     for fn in sorted(os.listdir(src)):
         if fn.endswith(".png") and not fn.startswith("0_"):
             shutil.copy(os.path.join(src, fn), os.path.join(OUT, pre + fn)); imgs.append(pre + fn)
-used = set(re.findall(r"IMG:(\S+)", "\n".join(secs + list(db.values()))))
+used = set(re.findall(r"IMG:(\S+)", "\n".join(secs + list(db.values()) + list(mb.values()))))
 imgs = [i for i in imgs if i == "0_cover.png" or i in used]
 
 # ---------- cover ----------
@@ -129,14 +131,14 @@ intro = [f"<center>\n\nIMG:0_cover.png\n\n</center>",
          "and **the chain's keepers** (witnesses and DHF). Everything counts what was **actually paid in the month**, so the numbers add up. 🌳"]
 method = ("## 🔬 How this bee counts\n\n"
           f"- **Flows**: all operations of {MONTH} (blocks {fd['blocks'][0]:,}–{fd['blocks'][1]:,}).\n"
-          f"- **Content**: all top-level posts paid out in {MON} (created {p0:%B %-d} – {p1:%B %-d}, paid 7 days later), with all their votes. Comments are counted only in the totals.\n"
+          f"- **Content**: all top-level posts paid out in {MON} (created {p0:%B %-d} – {p1:%B %-d}, paid 7 days later), with all their votes. Comments paid in the month have their own section (💬).\n"
           f"- Source: the public **HAFSQL** database by @mahdiyari. HIVE/USD at the month's average conversion price (≈ ${price:.4f}).\n"
           + (f"- **Checked against the blockchain**: {vn or 'a'} random blocks of the month and the top 10 posts were re-read straight from Hive nodes and compared with the database. Result: {vres} ([verify.py](https://github.com/hiveb3/beecounter/blob/main/verify.py)).\n" if vres else "")
           + (f"- **Supply cross-check** from our own Hive node: see the table above.\n" if node_line else "")
           + "- **HP stakers** has no operation of its own: estimated as 1.5× the witness rewards (15% vs 10%). \"$ given\", \"≈ $ after 24h\" and \"$ removed\" are estimates based on rshares.\n"
           "- Accounts of The Hive Tree are left out of the rankings.")
-disclaimer = ("<sub>**Disclaimer.** This report is generated automatically by a bot, from code written with AI (Claude) and reviewed by a human (Ant, @hive3), "
-              "who also reads the draft before it goes out. The numbers come from public blockchain data and are cross-checked against the chain itself, "
+disclaimer = ("<sub>**Disclaimer.** This report is generated automatically by a bot, from code written with AI (Claude) and reviewed by a human (Ant, @hive3). "
+              "The numbers come from public blockchain data and are cross-checked against the chain itself, "
               "but some figures (HP stakers, \"$ given\", \"$ removed\", exchange labels) are estimates, and a bee can still miscount. "
               "It is not financial advice, and it is not an accusation against anyone: naming an account only means describing what the chain shows. "
               "If you spot an error, tell me in the comments and I'll correct it. Ant 🐝</sub>")
@@ -146,7 +148,7 @@ footer = ["This bee is a 🤖 **bot**, built with love 💛 by @hive3 for every 
           "**BeeCounter** 🐝🧮\n@beecounter · *The Hive Tree* 🌳 by @hive3\n\n<sub>🐝 Join **[AIBees](/c/hive-170283)**, the AI-assisted creators' community · 🎮 Play **[BeeTris](https://hiveb3.github.io/beetris/)** · 🗳️ [Vote @hive3 as witness](https://vote.hive.uno/@hive3)</sub>"]
 parts = ["\n\n".join(intro), quadra,
          "# 🌊 Part 1 · The flows", *secs[:3],
-         "# 🍯 Part 2 · The 65% for content", *[s for s in secs[3:] if not s.startswith(("## 🏛️", "## 🏦"))],
+         "# 🍯 Part 2 · The 65% for content", *[s for s in secs[3:] if not s.startswith(("## 🏛️", "## 🏦"))], *list(mb.values()),
          "# 🏛️ Part 3 · The keepers", *[s for s in secs if s.startswith(("## 🏛️", "## 🏦"))], *list(db.values()),
          method, disclaimer, "\n\n".join(footer)]
 open(os.path.join(OUT, "post.md"), "w").write("\n\n---\n\n".join(parts) + "\n")
