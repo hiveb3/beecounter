@@ -15,6 +15,7 @@ echo "== $(date -u) monthly ledger $M (posts created $FROM .. $TO)"
 python3 inflation.py "$M" > "$OUT/flow/inflation.log" && mv "inflation_$M.json" "$OUT/flow/data.json"
 python3 collect.py "$FROM" "$TO" > "$OUT/content/collect.log" && mv "data_${FROM}_${TO}.json" "$OUT/content/data.json"
 python3 render.py "$OUT/content/data.json" "$OUT/content" "$FROM" "$TO"
+python3 comments.py "$FROM" "$TO" "$OUT/comments" > "$OUT/comments.log" 2>&1 || echo "comments section skipped" >> "$OUT/comments.log"
 python3 render_inflation.py "$OUT/flow/data.json" "$OUT/flow"
 python3 dhf_watch.py "$M" > "$OUT/flow/dhf.log" && mkdir -p "$OUT/dhf" && mv "dhf_$M.json" "$OUT/dhf/data.json"
 PRICE=$(python3 -c "import json;d=json.load(open('$OUT/flow/data.json'));c=d['convert_hbd_to_hive'][0];print(c[1]/c[2] if c[2] else 0)")
