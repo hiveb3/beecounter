@@ -135,6 +135,11 @@ method = ("## 🔬 How this bee counts\n\n"
           + (f"- **Supply cross-check** from our own Hive node: see the table above.\n" if node_line else "")
           + "- **HP stakers** has no operation of its own: estimated as 1.5× the witness rewards (15% vs 10%). \"$ given\", \"≈ $ after 24h\" and \"$ removed\" are estimates based on rshares.\n"
           "- Accounts of The Hive Tree are left out of the rankings.")
+disclaimer = ("<sub>**Disclaimer.** This report is generated automatically by a bot, from code written with AI (Claude) and reviewed by a human (Ant, @hive3), "
+              "who also reads the draft before it goes out. The numbers come from public blockchain data and are cross-checked against the chain itself, "
+              "but some figures (HP stakers, \"$ given\", \"$ removed\", exchange labels) are estimates, and a bee can still miscount. "
+              "It is not financial advice, and it is not an accusation against anyone: naming an account only means describing what the chain shows. "
+              "If you spot an error, tell me in the comments and I'll correct it. Ant 🐝</sub>")
 footer = ["This bee is a 🤖 **bot**, built with love 💛 by @hive3 for every bee in the Hive 🐝🌼🍯. It never votes and never comments: it only counts, so the whole hive can see where the honey flows. Ideas and corrections are welcome in the comments, a human reads them: @hive3. 🌳",
      "🧩 **Open source & AI-generated**: every script that builds this report is public on [GitHub](https://github.com/hiveb3/beecounter) (MIT license), written with an AI (Claude) and reviewed by a human. Anyone can check the numbers, run it, fork it or keep it alive. 🐝",
           "<sub>🔥 **100% of this post's rewards are burned** (beneficiary @null): pure data for the hive, nothing to farm. Data by @mahdiyari's HAFSQL, idea by @antisocialist.</sub>",
@@ -143,7 +148,7 @@ parts = ["\n\n".join(intro), quadra,
          "# 🌊 Part 1 · The flows", *secs[:3],
          "# 🍯 Part 2 · The 65% for content", *[s for s in secs[3:] if not s.startswith(("## 🏛️", "## 🏦"))],
          "# 🏛️ Part 3 · The keepers", *[s for s in secs if s.startswith(("## 🏛️", "## 🏦"))], *list(db.values()),
-         method, "\n\n".join(footer)]
+         method, disclaimer, "\n\n".join(footer)]
 open(os.path.join(OUT, "post.md"), "w").write("\n\n---\n\n".join(parts) + "\n")
 desc = f"Hive {MONTH}: where every new HIVE went. Inflation, posts, comments, stakers, witnesses, DHF, HBD. 🐝"
 if len(desc) > 120: desc = f"Hive {MONTH}: where every new HIVE went, from inflation to wallets. 🐝"
