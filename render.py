@@ -204,7 +204,7 @@ L.append(txt)
 lvt = [x for x in d["lateVoters"] if x[0] not in SELF and x[1] >= MIN_USD][:10]
 if lvt:
     L.append("**🐝 Late pollinators: the curators who vote after day one** (idea by @antisocialist)\n\n"
-             "Curation rewards are split by voting time: votes in the **first 24 hours** earn the full curation share, on **days 2–3** half, and from **day 4 until the last 12 hours** only an eighth; in the last 12 hours a vote can no longer raise the payout. The curation a late voter gives up goes back to the reward pool, while their vote still raises the post's payout for the author and for everyone who voted before. In short, late voters **do a favor to the author and to every earlier curator**. Here are the ones who gave the most honey after day one:\n\n" +
+             "Curation rewards are split by voting time: votes in the **first 24 hours** earn the full curation share, on **days 2–3** half, and from **day 4 until the last 12 hours** only an eighth; in the last 12 hours a vote can no longer raise the payout. The curation a late voter gives up is not lost: it is shared among the curators who voted earlier (thanks @antisocialist for the correction), while their vote still raises the post's payout for the author. In short, late voters **do a favor to the author and to every earlier curator**. Here are the ones who gave the most honey after day one:\n\n" +
              table(lvt, [("Voter", lambda x: "@" + x[0], 0), ("≈ $ given after 24h", lambda x: money(x[1]), 1), ("Share of their votes after 24h", lambda x: f"{x[2] * 100:.0f}%", 1)]))
 late = uniq([r for r in d["late"] if r["a"] not in SELF and r["pay"] >= MIN_USD])[:10]
 if late:
@@ -242,9 +242,13 @@ if ra and not DAILY:
              f"In this period **{rt[0]:,} authors** set it as beneficiary on **{rt[1]:,} posts**, sending it **≈ ${rt[2]:,.2f}**. The top 10:\n\n" +
              table(ra, [("Author", lambda x: "@" + x[0], 0), ("Posts", lambda x: f"{x[2]:,}", 1), ("Avg. share", lambda x: f"{x[3]:.0f}%", 1), ("≈ $ to @reward.app", lambda x: money(x[1]), 1)]))
 dv = [x for x in d["topDV"] if x[2] >= MIN_USD][:10]; hit = [x for x in d["topHit"]][:3]
+# Nov 2026: late-voter curation and "where removed rewards go" corrected/added on a suggestion by @antisocialist
 L.append("---\n\n## 👎 Downvotes\n\n" + "Downvotes are part of how Hive works. Just the numbers, no judgment:\n\n"
          f"- **{d['down']:,} downvotes** from **{d['nDownvoters']:,} accounts** hit **{d['postsHit']:,} posts** and removed an estimated **≈ ${d['removed']:,.2f}**.\n"
-         f"- **{d['zeroed']:,} posts that had upvotes ended at zero.**\n\n" +
+         f"- **{d['zeroed']:,} posts that had upvotes ended at zero.**\n"
+         f"- **Where does that honey go?** It is not burned: it goes back to the reward pool and is paid out again by the next votes. "
+         f"This month the **top 10 voters** cast **{d['top10v'] * 100:.0f}%** of all upvote value, so roughly that share of the removed honey "
+         f"ends up with them as curators and with the authors they choose (a point raised by @antisocialist).\n\n" +
          (table(dv, [("Downvoter", lambda x: "@" + x[0], 0), ("Downvotes", lambda x: f"{x[1]:,}", 1), ("≈ $ removed", lambda x: money(x[2]), 1), ("Authors", lambda x: f"{x[3]:,}", 1)]) if dv else "") +
          ("\n\nMost hit: " + ", ".join(f"@{x[0]} ({x[1]} downvotes, ≈ ${x[2]:,.2f})" for x in hit) + "." if hit else ""))
 cm = d["comm"][:4]
