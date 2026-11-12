@@ -105,6 +105,24 @@ except Exception as e: print("avatar:", e)
 
 # ---------- text ----------
 p0 = dt.date.fromisoformat(cd["daily"][0][0]); p1 = dt.date.fromisoformat(cd["daily"][-1][0])
+
+# ---------- independent checks: verify.py sample + own-node supply snapshots ----------
+vt = os.path.join(OUT, "verify.txt"); vres = vn = None
+if os.path.exists(vt):
+    txt = open(vt).read()
+    m = re.search(r"RESULT: (.*)", txt); vres = m.group(1).strip() if m else None
+    m = re.search(r"checking (\d+) random blocks", txt); vn = int(m.group(1)) if m else None
+nxt = (M.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+sn0, sn1 = (os.path.join(HERE, "supply", f"{d:%Y-%m-%d}.json") for d in (M, nxt))
+node_line = ""
+if os.path.exists(sn0) and os.path.exists(sn1):
+    j0, j1 = json.load(open(sn0)), json.load(open(sn1))
+    nH, nD = j1["current_supply"] - j0["current_supply"], j1["current_hbd_supply"] - j0["current_hbd_supply"]
+    node_line = (f"\n\n🖥️ **Cross-check from our own Hive node** (snapshots at 00:00 UTC, blocks {j0['block']:,} → {j1['block']:,}): "
+                 f"HIVE supply {nH:+,.0f}, HBD supply {nD:+,.0f}. Difference from the database figure: {nH - dH:+,.0f} HIVE "
+                 f"({'✅ match' if abs(nH - dH) < 1000 else '⚠️ to investigate'}; a few hundred HIVE come from the snapshots not falling exactly on the month's first and last block).")
+quadra += node_line
+
 intro = [f"<center>\n\nIMG:0_cover.png\n\n</center>",
          f"Bzzz! 🐝🧮 BeeCounter here with the **Monthly Ledger** for **{MONTH}**: one report that follows **every new HIVE** from the moment the chain creates it to the wallet that receives it. 🍯",
          "Three parts: **the flows** (inflation, conversions, HBD), **the 65% for content** (who fed whom, the honey curve, beneficiaries, downvotes) "
@@ -113,7 +131,9 @@ method = ("## 🔬 How this bee counts\n\n"
           f"- **Flows**: all operations of {MONTH} (blocks {fd['blocks'][0]:,}–{fd['blocks'][1]:,}).\n"
           f"- **Content**: all top-level posts paid out in {MON} (created {p0:%B %-d} – {p1:%B %-d}, paid 7 days later), with all their votes. Comments are counted only in the totals.\n"
           f"- Source: the public **HAFSQL** database by @mahdiyari. HIVE/USD at the month's average conversion price (≈ ${price:.4f}).\n"
-          "- **HP stakers** has no operation of its own: estimated as 1.5× the witness rewards (15% vs 10%). \"$ given\", \"≈ $ after 24h\" and \"$ removed\" are estimates based on rshares.\n"
+          + (f"- **Checked against the blockchain**: {vn or 'a'} random blocks of the month and the top 10 posts were re-read straight from Hive nodes and compared with the database. Result: {vres} ([verify.py](https://github.com/hiveb3/beecounter/blob/main/verify.py)).\n" if vres else "")
+          + (f"- **Supply cross-check** from our own Hive node: see the table above.\n" if node_line else "")
+          + "- **HP stakers** has no operation of its own: estimated as 1.5× the witness rewards (15% vs 10%). \"$ given\", \"≈ $ after 24h\" and \"$ removed\" are estimates based on rshares.\n"
           "- Accounts of The Hive Tree are left out of the rankings.")
 footer = ["This bee is a 🤖 **bot**, built with love 💛 by @hive3 for every bee in the Hive 🐝🌼🍯. It never votes and never comments: it only counts, so the whole hive can see where the honey flows. Ideas and corrections are welcome in the comments, a human reads them: @hive3. 🌳",
      "🧩 **Open source & AI-generated**: every script that builds this report is public on [GitHub](https://github.com/hiveb3/beecounter) (MIT license), written with an AI (Claude) and reviewed by a human. Anyone can check the numbers, run it, fork it or keep it alive. 🐝",

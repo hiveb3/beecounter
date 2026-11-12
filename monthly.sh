@@ -19,6 +19,7 @@ python3 render_inflation.py "$OUT/flow/data.json" "$OUT/flow"
 python3 dhf_watch.py "$M" > "$OUT/flow/dhf.log" && mkdir -p "$OUT/dhf" && mv "dhf_$M.json" "$OUT/dhf/data.json"
 PRICE=$(python3 -c "import json;d=json.load(open('$OUT/flow/data.json'));c=d['convert_hbd_to_hive'][0];print(c[1]/c[2] if c[2] else 0)")
 python3 render_dhf.py "$OUT/dhf/data.json" "$OUT/dhf" "$PRICE"
+python3 verify.py "$M" > "$OUT/verify.txt" 2>&1 || echo "RESULT: check could not run ⚠️" >> "$OUT/verify.txt"   # HAFSQL vs blockchain sample
 python3 compose_ledger.py "$OUT"
 if [ "$AUTO_PUBLISH" = "1" ]; then pub "$OUT" --publish
 else pub "$OUT"; ./notify.sh "$OUT"; echo "DRAFT: check $OUT/final.md, then run:  ./approve.sh $OUT"; fi

@@ -41,6 +41,10 @@ async function upload(file) {
   let body = fs.readFileSync(path.join(dir, 'post.md'), 'utf8');
   for (const im of meta.images) body = body.split(`IMG:${im}`).join(`![${im}](${urls[im]})`);
   if (body.includes('IMG:')) throw new Error('missing images in the post');
+  // house style: no centered text, and accounts are linked without "@" so nobody gets a notification
+  body = body.replace(/<\/?center>\n?/g, '');
+  body = body.replace(/\[@([a-z][a-z0-9.-]{1,14}[a-z0-9])\]\(/g, '[$1](');
+  body = body.replace(/(^|[^\w\/\[@.-])@([a-z][a-z0-9.-]{1,14}[a-z0-9])(?![\w(])/g, '$1[$2](/@$2)');
   fs.writeFileSync(path.join(dir, 'final.md'), `# ${meta.title}\n\n${body}`);
   console.log('Draft ready:', path.join(dir, 'final.md'));
   if (!PUBLISH) return;
