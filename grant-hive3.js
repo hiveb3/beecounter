@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Aggiunge @hive3 come authority (posting o, con --active, active) a tutti gli account creati da @hive3.
+// Aggiunge @hive3 come authority (posting o, con --active, active) a tutti gli account di servizio di @hive3.
 // Uso:  cd /root/beecounter && git pull && node grant-hive3.js [--active] [--dry]   (dhive già installato per publish.js)
 // Per ogni account chiede la ACTIVE key (o la OWNER key con --active), input nascosto, mai salvata. Invio vuoto = salta.
 
@@ -7,8 +7,11 @@ const dhive = require('@hiveio/dhive');
 const readline = require('readline');
 
 const AUTHORITY = 'hive3';
-// Tutti gli account creati da @hive3 (verificato on-chain, 12 nov 2026)
-const ACCOUNTS = ['hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beecounter', 'scoutbee'];
+// Tutti gli account di servizio di @hive3 (verificati on-chain, 12 nov 2026)
+const ACCOUNTS = [
+  'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beecounter', 'scoutbee', // creati da hive3
+  'hivethree', 'hive-3', 'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron',    // creati da altri
+];
 // --active: dà a @hive3 anche l'autorità ACTIVE (trasferimenti, deleghe...). Richiede la OWNER key.
 const ROLE = process.argv.includes('--active') ? 'active' : 'posting';
 const SIGNER = ROLE === 'active' ? 'owner' : 'active';
