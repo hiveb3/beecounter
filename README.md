@@ -10,7 +10,7 @@ BeeCounter counts the honey on [Hive](https://hive.io): who fed whom, how reward
 
 | Report | When | What it shows |
 |---|---|---|
-| **Monthly Ledger** | 2nd of the month, 04:00 UTC | where every new HIVE went: inflation split (content, HP stakers, witnesses, DHF), HBD↔HIVE conversions, HBD interest, DHF spending and where the funded proposals' money goes (DHF Watch), plus the full content analysis of the posts paid in the month: payout distribution, honey curve, top voters, vote map, beneficiaries, downvotes, communities, and the comments |
+| **Monthly Ledger** | 2nd of the month, 04:00 UTC | where every new HIVE went: inflation split (content, HP stakers, witnesses, DHF), HBD↔HIVE conversions, HBD interest, DHF spending and where the funded proposals' money goes (DHF Watch), plus the full content analysis of the posts paid in the month: payout distribution, honey curve, top voters, vote map, beneficiaries, downvotes, communities, and the comments (who earns from talking, self-votes) |
 
 BeeCounter publishes **one report a month** (no daily posts). Bot rules: **one post per report, no votes, no comments**, and **100% of the rewards are burned** (beneficiary `@null`).
 
@@ -27,11 +27,11 @@ All data comes from the public **[HAFSQL](https://hafsql.mahdiyari.info)** datab
 | File | Role |
 |---|---|
 | `collect.py` | posts created in a date range + all their votes → statistics JSON |
-| `comments.py` | comments paid in the month: who earns, concentration, self-votes, communities |
 | `inflation.py` | operations of a month (rewards, witnesses, DHF, HBD, conversions) → JSON |
 | `render.py` | charts + Markdown for the content reports |
 | `render_inflation.py` | charts + Markdown for the money flows |
 | `dhf_watch.py`, `render_dhf.py` | DHF Watch: where the funded proposals' money flows |
+| `comments.py` | the comments paid in the month (💬 section) |
 | `compose_ledger.py` | merges everything into the Monthly Ledger |
 | `verify.py` | sample check of HAFSQL against the blockchain |
 | `supply_snapshot.py`, `install_snapshot_timer.sh` | daily supply snapshot from your own hived node |
