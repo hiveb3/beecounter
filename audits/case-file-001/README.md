@@ -5,7 +5,6 @@ This repository contains the public data behind *"Case File #001: The Arithmetic
 - `REPORT.md`: the full report
 - `data/*.csv`: the tables used in the report
 - `sql/queries.sql`: every query exactly as it was run, with the time it was run and the number of rows returned
-- `charts/`: the two charts in the report (SVG)
 - `SHA256SUMS.txt`: SHA-256 checksum of every file in this repository
 
 **Source:** all the data come from the public Hive blockchain, read from HAFSQL (`hafsql-sql.mahdiyari.info`, database `haf_block_log`, public read-only login `hafsql_public` / `hafsql_public`). Anyone can rerun the queries in `sql/queries.sql` and compare the results.
