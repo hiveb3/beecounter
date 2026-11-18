@@ -10,6 +10,7 @@
 set -euo pipefail
 BASE=https://raw.githubusercontent.com/hiveb3/beecounter/${REF:-main}/vps/blurt/watchdog
 curl -sfL -o /opt/blurt-watchdog/walletrpc.sh "$BASE/walletrpc.sh"
+curl -sfL -o /opt/blurt-watchdog/props.py "$BASE/props.py"
 . /opt/blurt-watchdog/walletrpc.sh
 ACC=blurtbee; NULL=BLT1111111111111111111111111111111114T1Anm
 CFG=/etc/blurt-watchdog.json; OUT=/root/beecounter/blurt_watchdog_test.txt
@@ -45,7 +46,8 @@ trap wr_stop EXIT
 PW=\$(python3 -c "import json;print(json.load(open('$CFG'))['wallet_pw'])")
 wr_start || exit 1
 U=\$(wr_call unlock "[\"\$PW\"]")
-R=\$(wr_call update_witness_properties '["$ACC",{"new_signing_key":"$NULL"},true]')
+P=\$(python3 /opt/blurt-watchdog/props.py $ACC $NULL true) || exit 1
+R=\$(wr_call update_witness_properties "\$P")
 echo "\$R" | head -c 600
 echo "\$R" | grep -q 'witness_set_properties' && ! echo "\$R" | grep -q '"error"'
 EOF
@@ -54,13 +56,15 @@ chmod 700 /opt/blurt-watchdog/disable.sh
 # dry run: same call with broadcast=false
 wr_start
 D1=$(wr_call unlock "[\"$PW\"]")
-D2=$(wr_call update_witness_properties "[\"$ACC\",{\"new_signing_key\":\"$NULL\"},false]")
+P=$(python3 /opt/blurt-watchdog/props.py "$ACC" "$NULL" false)
+D2=$(wr_call update_witness_properties "$P")
 wr_stop
 {
   echo "=== wallet setup ==="
   echo "set_password: $S1"; echo "unlock: $S2"; echo "import_key: $(echo "$S3" | sed -E "$RED")"; echo "list_keys: $S4"
   echo "=== dry run $(date -Is) (broadcast=false, nothing sent to the chain) ==="
   echo "unlock: $D1"
+  echo "params: $P"
   echo "update_witness_properties: $(echo "$D2" | head -c 1500)"
   if echo "$D2" | grep -q 'witness_set_properties' && ! echo "$D2" | grep -q '"error"'; then
     echo "RESULT: DRY RUN OK"
