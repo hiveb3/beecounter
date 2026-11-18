@@ -49,7 +49,7 @@ U=\$(wr_call unlock "[\"\$PW\"]")
 P=\$(python3 /opt/blurt-watchdog/props.py $ACC $NULL true) || exit 1
 R=\$(wr_call update_witness_properties "\$P")
 echo "\$R" | head -c 600
-echo "\$R" | grep -q 'witness_set_properties' && ! echo "\$R" | grep -q '"error"'
+echo "\$R" | grep -q 'witness_set_properties' && ! echo "\$R" | grep -q '"error"' && ! echo "\$R" | grep -q '"signatures":\\[\\]'
 EOF
 chmod 700 /opt/blurt-watchdog/disable.sh
 
@@ -66,7 +66,9 @@ wr_stop
   echo "unlock: $D1"
   echo "params: $P"
   echo "update_witness_properties: $(echo "$D2" | head -c 1500)"
-  if echo "$D2" | grep -q 'witness_set_properties' && ! echo "$D2" | grep -q '"error"'; then
+  if echo "$D2" | grep -q '"new_signing_key","0000000000000000000000000000000000000000000000000000000000000000' \
+     && ! echo "$D2" | grep -q '"key","0000000000000000000000000000000000000000000000000000000000000000' \
+     && ! echo "$D2" | grep -q '"signatures":\[\]' && ! echo "$D2" | grep -q '"error"'; then
     echo "RESULT: DRY RUN OK"
   else
     echo "RESULT: DRY RUN FAILED"

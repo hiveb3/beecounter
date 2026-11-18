@@ -19,5 +19,6 @@ for n in NODES:
 else:
     sys.exit('witness not found on any node')
 props = {k: v for k, v in (w.get('props') or {}).items() if k != 'account_subsidy_budget' and k != 'account_subsidy_decay'}
-props['new_signing_key'] = key
+props['key'] = w['signing_key']          # current key: authorizes the change
+props['new_signing_key'] = key           # new key: the null key disables block production
 print(json.dumps([acc, props, bc]))
