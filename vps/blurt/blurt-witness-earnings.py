@@ -24,7 +24,16 @@ def rpc(method, params, node=None):
             last = e
     raise SystemExit(f'all nodes failed: {last}')
 
-wit, node = rpc('condenser_api.get_witness_by_account', [ACC])
+wit, node = None, None
+for n in NODES:
+    try:
+        w, nn = rpc('condenser_api.get_witness_by_account', [ACC], n)
+    except SystemExit:
+        continue
+    if node is None: node = nn
+    if w: wit = w; break
+wit = wit or {}
+if node is None: raise SystemExit('no Blurt node reachable')
 dgp, _ = rpc('condenser_api.get_dynamic_global_properties', [], node)
 fund_key = next(k for k in dgp if k.startswith('total_vesting_fund'))
 ratio = float(dgp[fund_key].split()[0]) / float(dgp['total_vesting_shares'].split()[0])
@@ -48,7 +57,7 @@ rewards.sort()
 total = sum(r[2] for r in rewards)
 days = collections.Counter(r[0][:10] for r in rewards)
 lines = [
-    f'=== Blurt witness report for @{ACC} ({dt.datetime.utcnow():%Y-%m-%d %H:%M} UTC, node {node}) ===',
+    f'=== Blurt witness report for @{ACC} ({dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC, node {node}) ===',
     f'Version: {wit.get("running_version")}  | missed blocks: {wit.get("total_missed")}  | last confirmed block: {wit.get("last_confirmed_block_num")}',
     f'Witness votes (vests): {wit.get("votes")}',
     f'Blocks produced: {len(rewards)}',
