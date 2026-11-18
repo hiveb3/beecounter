@@ -6,7 +6,8 @@
 import json, sys, os, urllib.request, collections, datetime as dt
 
 ACC = sys.argv[1] if len(sys.argv) > 1 else 'blurtbee'
-NODES = ['http://127.0.0.1:8091', 'https://rpc.blurt.world', 'https://blurt-rpc.saboin.com', 'https://rpc.beblurt.com']
+# Public Blurt nodes only (port 8091 on this VPS is the HIVE node, not Blurt)
+NODES = ['https://blurt-rpc.saboin.com', 'https://rpc.beblurt.com', 'https://rpc.blurt.world', 'https://blurt-rpc.node01.org']
 OUT = '/root/beecounter/blurt_witness.txt'
 
 def rpc(method, params, node=None):
@@ -30,8 +31,8 @@ for n in NODES:
         w, nn = rpc('condenser_api.get_witness_by_account', [ACC], n)
     except SystemExit:
         continue
+    if w: wit, node = w, nn; break
     if node is None: node = nn
-    if w: wit = w; break
 wit = wit or {}
 if node is None: raise SystemExit('no Blurt node reachable')
 dgp, _ = rpc('condenser_api.get_dynamic_global_properties', [], node)
