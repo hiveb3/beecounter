@@ -9,6 +9,7 @@
 //   3. invitations: one bee per run, max 5 names, around the clock but each person only at THEIR usual hour,
 //      in their language first (es, pt, de, fr, pl) and then English; each person tagged ONCE in total
 //      across the whole swarm; people who already replied (even without an invite) are never invited
+//      Every invitation is published with 100% beneficiary @null: the swarm burns its own author rewards.
 //
 // Usage (VPS):  /opt/hive-block-producer/run-with-key.sh /root/beecounter/buzz.js [--live]
 //   without --live it only prints what it would do. Needs: npm i pg  (in /root/beecounter)
@@ -67,6 +68,16 @@ const HOUR_WINDOW = 1;                 // invite people whose usual posting hour
 
 const client = new dhive.Client(['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network']);
 const key = process.env.HIVE3_POSTING_KEY ? dhive.PrivateKey.fromString(process.env.HIVE3_POSTING_KEY) : null;
+// Every snap/wave the swarm publishes burns its author reward: 100% beneficiary @null
+// (comment + comment_options in the same transaction; curators are still paid as usual).
+const BURN = [{ account: 'null', weight: 10000 }];
+async function postBurned(c) {
+  return client.broadcast.sendOperations([
+    ['comment', c],
+    ['comment_options', { author: c.author, permlink: c.permlink, max_accepted_payout: '1000000.000 HBD', percent_hbd: 10000,
+      allow_votes: true, allow_curation_rewards: true, extensions: [[0, { beneficiaries: BURN }]] }],
+  ], key);
+}
 const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
 const save = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -211,12 +222,12 @@ async function invite(state, snaps) {
   }
   if (!names.length) { log('no new candidates awake at this hour'); return; }
   const body = INVITE_TEXT(names, lang);
-  log(`📨 @${sender} (${group}, ${lang}): ${names.join(', ')}`);
+  log(`📨 @${sender} (${group}, ${lang}): ${names.join(', ')} · beneficiary 100% @null`);
   if (!canBroadcast()) { log('   ' + body); return; }
   const permlink = `buzz-invite-${Date.now().toString(36)}`;
   try {
-    await client.broadcast.comment({ parent_author: sender, parent_permlink: snaps[sender], author: sender, permlink, title: '', body,
-      json_metadata: JSON.stringify({ app: 'buzzlist/1.0', tags: ['buzzlist'] }) }, key);
+    await postBurned({ parent_author: sender, parent_permlink: snaps[sender], author: sender, permlink, title: '', body,
+      json_metadata: JSON.stringify({ app: 'buzzlist/1.0', tags: ['buzzlist'] }) });
   } catch (e) { log(`✗ invitation failed: ${e.message.split('\n')[0]}`); return; }
   const at = new Date().toISOString();
   for (const n of names) state.invited[n] = { bee: sender, at, permlink, group, lang };
