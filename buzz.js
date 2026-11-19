@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const dhive = require('@hiveio/dhive');
 const { Client: PG } = require('pg');
+require('dns').setDefaultResultOrder('ipv4first');   // HAFSQL refuses IPv6 connections from the VPS
 
 const DIR = __dirname;
 const LIVE = process.argv.includes('--live');
