@@ -42,6 +42,9 @@ const INVITE_TEXT = (names) =>
   `![Ant](https://images.hive.blog/u/ant-thebeekeeper/avatar/small) Ant\n\n` +
   `<sub>Automated one-time invitation from the hive3 swarm, run by Ant (human, AI-assisted). ` +
   `No reply = no more tags. Joining earns a single thank-you vote, once.</sub>`;
+const INVITE_ES = `🇪🇸 Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ` +
+  `¿Quieres novedades? Responde 🐝 al snap de arriba. No te volveremos a etiquetar si no dices que sí.\n\n`;
+const ES_WORDS = /\b(que|los|las|para|con|una|por|pero|como|está|también|muy|del)\b/g;
 
 const client = new dhive.Client(['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network']);
 const key = process.env.HIVE3_POSTING_KEY ? dhive.PrivateKey.fromString(process.env.HIVE3_POSTING_KEY) : null;
@@ -50,6 +53,8 @@ const save = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(`[${new Date().toISOString()}]`, ...a);
 const canBroadcast = () => LIVE && key && !fs.existsSync(STOP_FILE);
+const today = () => new Date().toISOString().slice(0, 10);
+const bump = (state, k, n = 1) => { const d = (state.daily = state.daily || {})[today()] || (state.daily[today()] = {}); d[k] = (d[k] || 0) + n; };
 
 // ---------- 1. read the opt-in replies ----------
 function verdict(body) {
@@ -71,7 +76,7 @@ async function scanReplies(state, snaps) {
       if (!v) continue;                                   // any reply still counts as "seen": never invited later
       if (s.last_reply && s.last_reply >= c.created) continue;
       s.last_reply = c.created;
-      if (s.status !== v) { s.status = v; s.changes = (s.changes || 0) + 1; log(`${v === 'in' ? '🐝' : '🚫'} @${u} (${bee})`); }
+      if (s.status !== v) { s.status = v; s.changes = (s.changes || 0) + 1; bump(state, v === 'in' ? 'opt_in' : 'opt_out'); log(`${v === 'in' ? '🐝' : '🚫'} @${u} (${bee})`); }
       if (v === 'in' && !s.first_in) s.first_in = { author: u, permlink: c.permlink, created: c.created, cashout: c.payout_at };
     }
   }
@@ -116,12 +121,25 @@ async function thank(state) {
       } catch (e) { log(`  ✗ @${b.name}: ${e.message.split('\n')[0]}`); }
       await sleep(3500);
     }
-    s.thanked = { at: new Date().toISOString(), by: done, usd: +usd.toFixed(3) };   // set even if partial: never a second round
+    s.thanked = { at: new Date().toISOString(), by: done, usd: +usd.toFixed(3) };
+    bump(state, 'thanked'); bump(state, 'honey_usd', +usd.toFixed(3));   // set even if partial: never a second round
     save(state);
   }
 }
 
 // ---------- 3. invitations ----------
+async function mutedUs(user, sender) {   // never knock on the door of someone who blocked the swarm
+  for (const b of new Set([sender, 'hive3'])) {
+    const r = await client.call('bridge', 'get_relationship_between_accounts', [user, b]).catch(() => null);
+    if (r && (r.ignores || r.blacklists)) return true;
+  }
+  return false;
+}
+async function writesSpanish(user) {
+  const posts = await client.call('bridge', 'get_account_posts', { sort: 'posts', account: user, limit: 2 }).catch(() => []);
+  const txt = (posts || []).map((p) => `${p.title} ${p.body.slice(0, 800)}`).join(' ').toLowerCase();
+  return (txt.match(ES_WORDS) || []).length >= 8;
+}
 async function candidates(group, exclude) {
   const pg = new PG({ host: 'hafsql-sql.mahdiyari.info', port: 5432, database: 'haf_block_log',
     user: 'hafsql_public', password: 'hafsql_public', statement_timeout: 300000 });
@@ -153,9 +171,16 @@ async function invite(state, snaps) {
   const group = (state.batches || 0) % TOP_EVERY === TOP_EVERY - 1 ? 'top75' : 'tail25';
   const extra = readJson(path.join(DIR, 'buzz-exclude.json'), []);
   const known = new Set([...Object.keys(state.invited), ...Object.keys(state.people), ...extra, ...FAMILY]);
-  const names = (await candidates(group, [...known])).filter((n) => !known.has(n)).slice(0, NAMES_PER_INVITE);
+  const names = [];
+  let spanish = 0;
+  for (const n of (await candidates(group, [...known])).filter((x) => !known.has(x))) {
+    if (names.length >= NAMES_PER_INVITE) break;
+    if (await mutedUs(n, sender)) { log(`- @${n} muted the swarm: skipped`); continue; }
+    names.push(n);
+    if (await writesSpanish(n)) spanish++;
+  }
   if (!names.length) { log('no new candidates'); return; }
-  const body = INVITE_TEXT(names);
+  const body = spanish ? INVITE_TEXT(names).replace('\n\n', '\n\n' + INVITE_ES) : INVITE_TEXT(names);
   log(`📨 @${sender} (${group}): ${names.join(', ')}`);
   if (!canBroadcast()) { log('   ' + body); return; }
   const permlink = `buzz-invite-${Date.now().toString(36)}`;
@@ -165,8 +190,21 @@ async function invite(state, snaps) {
   } catch (e) { log(`✗ invitation failed: ${e.message.split('\n')[0]}`); return; }
   const at = new Date().toISOString();
   for (const n of names) state.invited[n] = { bee: sender, at, permlink, group };
+  bump(state, 'invited', names.length);
   state.last_invite = at; state.batches = (state.batches || 0) + 1;
   save(state);
+}
+
+// ---------- evening summary on the phone (ntfy, same topic as BeeCounter) ----------
+async function summary(state, ins) {
+  const env = fs.existsSync(path.join(DIR, '.env')) ? fs.readFileSync(path.join(DIR, '.env'), 'utf8') : '';
+  const topic = (env.match(/^NTFY_TOPIC=(.*)$/m) || [])[1];
+  if (!topic) return;
+  const d = (state.daily || {})[today()] || {};
+  const msg = `Today: ${d.invited || 0} invited · ${d.opt_in || 0} 🐝 · ${d.opt_out || 0} 🚫 · ${d.thanked || 0} thanked ($${(d.honey_usd || 0).toFixed(2)})\n` +
+    `Total: ${ins} on the list · ${Object.keys(state.invited).length} invited so far`;
+  await fetch(`https://ntfy.sh/${topic.trim()}`, { method: 'POST', body: msg, headers: { Title: 'Buzz List: daily summary', Tags: 'bee' } }).catch(() => {});
+  state.summary_sent = today();
 }
 
 (async () => {
@@ -180,6 +218,7 @@ async function invite(state, snaps) {
   await invite(state, snaps).catch((e) => log('invite error:', e.message));
   if (LIVE) save(state);
   const ins = Object.values(state.people).filter((s) => s.status === 'in').length;
+  if (LIVE && new Date().getUTCHours() >= 22 && state.summary_sent !== today()) { await summary(state, ins); save(state); }   // ~19:17 in Argentina
   log(`buzz list: ${ins} in · ${Object.keys(state.invited).length} invited · ${Object.keys(state.people).length} replied`);
   process.exit(0);
 })();
