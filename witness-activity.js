@@ -1,5 +1,5 @@
 // Witness ranking recomputed by dropping votes from accounts inactive for N months/years.
-// Witnesses: top N ACTIVE ones (signing key set and a block produced in the last 30 days).
+// Witnesses: top N enabled ones (signing key set); idle = days since their last block.
 // v2 activity = latest of:
 //   - last_vote_time, last_post, last_root_post, last_update (HAFSQL)
 //   - RC manabar last_update_time (rc_api): moves whenever the account pays RC for ANY
@@ -29,7 +29,8 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
 (async () => {
   const head = (await rpc('condenser_api.get_dynamic_global_properties', [])).head_block_number;
   const all = await rpc('condenser_api.get_witnesses_by_vote', ['', 250]);
-  const list = all.filter(w => w.signing_key !== NULL_KEY && head - w.last_confirmed_block_num < 30 * 28800).slice(0, N);
+  const list = all.filter(w => w.signing_key !== NULL_KEY).slice(0, N);
+  for (const w of list) w.idleDays = Math.round((head - w.last_confirmed_block_num) / 28800);
   log('active witnesses', list.length, 'of', all.length, 'last', list[list.length - 1].owner);
   const c = new Client({ host: 'hafsql-sql.mahdiyari.info', user: 'hafsql_public', password: 'hafsql_public', database: 'haf_block_log' });
   await c.connect();
@@ -72,7 +73,7 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
   log('rc newer than social activity for', rcHits, 'accounts');
   const now = Date.now();
   const rows = list.map((w, i) => {
-    const row = { witness: w.owner, chain: i + 1, voters: voters[w.owner].length };
+    const row = { witness: w.owner, chain: i + 1, idle: w.idleDays, voters: voters[w.owner].length };
     for (const [k] of CUTS) { row[k] = 0; row['s' + k] = 0; }
     const add = n => {
       const a = info[n]; if (!a) return;
@@ -95,7 +96,7 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
   fs.writeFileSync('witness-activity.json', JSON.stringify(res, null, 1));
   const M = x => (x / 1e6).toFixed(2);
   console.log(`tot ${M(tot)} | ` + CUTS.map(([k]) => `${k} ${M(dist[k] || 0)}/${M(distS[k] || 0)}`).join(' | ') + ` | rcHits ${rcHits}`);
-  console.log('witness,voters,' + CUTS.map(([k]) => k).join(',') + ',social6m');
-  for (const r of rows) console.log([r.witness, r.voters, ...CUTS.map(([k]) => M(r[k])), M(r.s6m)].join(','));
+  console.log('witness,idle,voters,' + CUTS.map(([k]) => k).join(',') + ',social6m');
+  for (const r of rows) console.log([r.witness, r.idle, r.voters, ...CUTS.map(([k]) => M(r[k])), M(r.s6m)].join(','));
   log('done');
 })().catch(e => { log('ERR', e.message); process.exit(1); });
