@@ -17,6 +17,8 @@ const ACCOUNTS = [
 const ROLE = process.argv.includes('--active') ? 'active' : 'posting';
 const SIGNER = ROLE === 'active' ? 'owner' : 'active';
 const DRY = process.argv.includes('--dry');
+// Non-interactive mode: WIF=<key> node grant-hive3.js --only=<account>  (used by grant-hive3.sh)
+const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
 const client = new dhive.Client(['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network']);
 
 function askHidden(q) {
@@ -31,7 +33,7 @@ function askHidden(q) {
 
 (async () => {
   const accounts = await client.database.getAccounts(ACCOUNTS);
-  for (const name of ACCOUNTS) {
+  for (const name of ACCOUNTS.filter((n) => !ONLY || n === ONLY)) {
     const acc = accounts.find((a) => a.name === name);
     if (!acc) { console.log(`✗ ${name}: does not exist, skipped`); continue; }
 
@@ -44,7 +46,7 @@ function askHidden(q) {
 
     if (DRY) { console.log(`~ ${name}: new ${ROLE} authority`, JSON.stringify(auth.account_auths)); continue; }
 
-    const wif = await askHidden(`${SIGNER.toUpperCase()} key of @${name} (enter = skip): `);
+    const wif = process.env.WIF ? process.env.WIF.trim() : await askHidden(`${SIGNER.toUpperCase()} key of @${name} (enter = skip): `);
     if (!wif) { console.log(`- ${name}: skipped`); continue; }
     let key;
     try { key = dhive.PrivateKey.fromString(wif); } catch { console.log(`✗ ${name}: invalid key`); continue; }
@@ -58,4 +60,5 @@ function askHidden(q) {
       console.log(`✓ ${name}: @${AUTHORITY} added as ${ROLE} (tx ${r.id})`);
     } catch (e) { console.log(`✗ ${name}: ${e.message}`); }
   }
+  process.exit(0);
 })();
