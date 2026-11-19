@@ -1,0 +1,10 @@
+group,accounts,stake_mhp,share_pct
+all stake behind valid witness votes,5566,136.24,100
+"silent >=6 months (no post, content vote, account update or governance action)",917,6.64,4.9
+silent >=1 year (same definition),0,0.0,0.0
+silent >=2 years,0,0.0,0.0
+silent >=5 years,0,0.0,0.0
+no post or content vote >=6 months (governance only),1546,16.08,11.8
+no post or content vote >=1 year,1169,15.32,11.2
+no post or content vote >=2 years,876,6.63,4.9
+no post or content vote >=5 years,366,6.1,4.5
