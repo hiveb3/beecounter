@@ -145,7 +145,7 @@ async function candidates(group, exclude) {
     user: 'hafsql_public', password: 'hafsql_public' });
   await pg.connect();
   await pg.query("SET statement_timeout = '300s'");   // the HAFSQL pooler refuses it as a startup parameter
-  const minRaw = Math.pow(10, (MIN_REP - 25) / 9 + 9);
+  const minRaw = Math.floor(Math.pow(10, (MIN_REP - 25) / 9 + 9));   // reputations are bigint
   const { rows } = await pg.query(`
     WITH p AS (SELECT author, count(*) n14, max(created) last_post,
                       sum(coalesce(total_payout_value,0)+coalesce(pending_payout_value,0)) rew
