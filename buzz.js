@@ -142,8 +142,9 @@ async function writesSpanish(user) {
 }
 async function candidates(group, exclude) {
   const pg = new PG({ host: 'hafsql-sql.mahdiyari.info', port: 5432, database: 'haf_block_log',
-    user: 'hafsql_public', password: 'hafsql_public', statement_timeout: 300000 });
+    user: 'hafsql_public', password: 'hafsql_public' });
   await pg.connect();
+  await pg.query("SET statement_timeout = '300s'");   // the HAFSQL pooler refuses it as a startup parameter
   const minRaw = Math.pow(10, (MIN_REP - 25) / 9 + 9);
   const { rows } = await pg.query(`
     WITH p AS (SELECT author, count(*) n14, max(created) last_post,
