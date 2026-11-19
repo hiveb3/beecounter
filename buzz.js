@@ -6,7 +6,8 @@
 //   1. reads the replies under each opt-in snap: 🐝 = opt in, 🚫 = opt out (the chain is the register)
 //   2. thank-you vote, ONCE per person, ever: the inviting bee at 100%, other bees added until >= $0.03
 //      (opt-out / opt-in again never earns a second vote)
-//   3. invitations: one bee per run, max 5 names, around the clock, each person tagged ONCE in total
+//   3. invitations: one bee per run, max 5 names, around the clock but each person only at THEIR usual hour,
+//      in their language first (es, pt, de, fr, pl) and then English; each person tagged ONCE in total
 //      across the whole swarm; people who already replied (even without an invite) are never invited
 //
 // Usage (VPS):  /opt/hive-block-producer/run-with-key.sh /root/beecounter/buzz.js [--live]
@@ -28,7 +29,7 @@ const FAMILY = ['hive3', 'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beec
   'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron', 'ant-thebeekeeper', 'blurtbee'];
 const VOTERS = FAMILY;                // every bee of the swarm can hand out honey, @hive3.guard included
 const NAMES_PER_INVITE = 5;
-const INVITE_EVERY_MIN = 14;           // one invitation per run (the timer runs every 15 min)
+const INVITE_EVERY_MIN = 14;           // one invitation per run (the timer runs every 15 min): ~250 people a day
 const DAY_UTC = [0, 24];               // invitations around the clock
 const TOP_EVERY = 5;                   // every 5th invitation goes to the 75% group, the others to the 25% tail
 const THANK_USD = 0.03;
@@ -36,15 +37,32 @@ const MAX_THANKS_PER_RUN = 10;
 const MIN_REP = 40;                    // reputation score
 const MIN_LEFT_H = 13;                 // a reply closer than this to payout can't be voted any more
 
-const INVITE_TEXT = (names) =>
-  `🐝 ${names.map((n) => '@' + n).join(' ')}: one-time hello from the swarm. We share rewards & governance data. ` +
-  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯\n\n` +
+// Invitations speak the invitee's language first, then English.
+// Languages with a translation: es, pt, de, fr, pl. Every other language gets English only.
+const EN = `One-time hello from the swarm. We share rewards & governance data. ` +
+  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯`;
+const NATIVE = {
+  es: `Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ¿Quieres novedades? Responde 🐝 al snap de arriba. No te volveremos a etiquetar si no dices que sí. 🍯`,
+  pt: `Um olá único do enxame: partilhamos dados sobre recompensas e governança. Quer novidades? Responda 🐝 ao snap acima. Não voltaremos a marcar você se não disser que sim. 🍯`,
+  de: `Ein einmaliges Hallo vom Schwarm: Wir teilen Daten zu Rewards und Governance. Möchtest du Updates? Antworte mit 🐝 auf den Snap oben. Ohne dein Ja markieren wir dich nie wieder. 🍯`,
+  fr: `Un bonjour unique de l'essaim : nous partageons des données sur les récompenses et la gouvernance. Envie de nouvelles ? Réponds 🐝 au snap ci-dessus. Sans ton oui, on ne te taguera plus jamais. 🍯`,
+  pl: `Jednorazowe cześć od roju: dzielimy się danymi o nagrodach i zarządzaniu. Chcesz nowości? Odpowiedz 🐝 pod snapem powyżej. Bez twojego tak nie oznaczymy cię ponownie. 🍯`,
+};
+const LANG_WORDS = {
+  es: /\b(que|los|las|para|con|una|por|pero|como|está|también|muy|del|hoy|gracias)\b/g,
+  pt: /\b(não|uma|para|com|mais|muito|também|você|isso|são|está|obrigad[oa])\b/g,
+  de: /\b(und|nicht|ich|ist|das|die|der|mit|auch|für|ein|eine|heute)\b/g,
+  fr: /\b(les|des|est|pas|une|pour|avec|dans|aussi|très|nous|aujourd'hui)\b/g,
+  pl: /\b(nie|jest|się|że|dla|jak|ale|tak|bardzo|dzisiaj|też)\b/g,
+  it: /\b(che|della|non|sono|anche|questo|molto|oggi|grazie|perché|nella)\b/g,   // recognised, answered in English
+  en: /\b(the|and|with|this|that|have|today|very|from|about)\b/g,
+};
+const INVITE_TEXT = (names, lang) =>
+  `🐝 ${names.map((n) => '@' + n).join(' ')}\n\n` + (NATIVE[lang] ? NATIVE[lang] + '\n\n' : '') + EN + `\n\n` +
   `![Ant](https://images.hive.blog/u/ant-thebeekeeper/avatar/small) Ant\n\n` +
   `<sub>Automated one-time invitation from the hive3 swarm, run by Ant (human, AI-assisted). ` +
   `No reply = no more tags. Joining earns a single thank-you vote, once.</sub>`;
-const INVITE_ES = `🇪🇸 Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ` +
-  `¿Quieres novedades? Responde 🐝 al snap de arriba. No te volveremos a etiquetar si no dices que sí.\n\n`;
-const ES_WORDS = /\b(que|los|las|para|con|una|por|pero|como|está|también|muy|del)\b/g;
+const HOUR_WINDOW = 1;                 // invite people whose usual posting hour is within ±1 h of now (their daytime)
 
 const client = new dhive.Client(['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network']);
 const key = process.env.HIVE3_POSTING_KEY ? dhive.PrivateKey.fromString(process.env.HIVE3_POSTING_KEY) : null;
@@ -135,10 +153,12 @@ async function mutedUs(user, sender) {   // never knock on the door of someone w
   }
   return false;
 }
-async function writesSpanish(user) {
-  const posts = await client.call('bridge', 'get_account_posts', { sort: 'posts', account: user, limit: 2 }).catch(() => []);
-  const txt = (posts || []).map((p) => `${p.title} ${p.body.slice(0, 800)}`).join(' ').toLowerCase();
-  return (txt.match(ES_WORDS) || []).length >= 8;
+async function language(user) {   // language of the last posts, by common words; English when unsure
+  const posts = await client.call('bridge', 'get_account_posts', { sort: 'posts', account: user, limit: 3 }).catch(() => []);
+  const txt = (posts || []).map((p) => `${p.title} ${p.body.slice(0, 1500)}`).join(' ').toLowerCase();
+  let best = 'en', top = 0;
+  for (const [l, re] of Object.entries(LANG_WORDS)) { const n = (txt.match(re) || []).length; if (n > top) { top = n; best = l; } }
+  return top >= 6 ? best : 'en';
 }
 async function candidates(group, exclude) {
   const pg = new PG({ host: 'hafsql-sql.mahdiyari.info', port: 5432, database: 'haf_block_log',
@@ -151,13 +171,16 @@ async function candidates(group, exclude) {
                       sum(coalesce(total_payout_value,0)+coalesce(pending_payout_value,0)) rew
                FROM hafsql.comments WHERE parent_author='' AND created > now()-interval '14 days' AND NOT deleted GROUP BY author),
          r AS (SELECT p.*, sum(rew) OVER (ORDER BY rew DESC, author) - rew AS before, sum(rew) OVER () AS tot FROM p),
+         hr AS (SELECT author, mode() WITHIN GROUP (ORDER BY extract(hour FROM created)) h FROM hafsql.comments
+                WHERE parent_author='' AND created > now()-interval '30 days' AND author IN (SELECT author FROM p) GROUP BY author),
          dv AS (SELECT DISTINCT voter FROM hafsql.operation_vote_view
                 WHERE author = ANY($1) AND weight < 0 AND timestamp > now()-interval '180 days')
-    SELECT r.author FROM r JOIN hafsql.reputations rp ON rp.account_name = r.author
+    SELECT r.author FROM r JOIN hafsql.reputations rp ON rp.account_name = r.author JOIN hr ON hr.author = r.author
     WHERE (CASE WHEN r.before < 0.75*r.tot THEN 'top75' ELSE 'tail25' END) = $2
       AND r.n14 BETWEEN 2 AND 60 AND r.last_post > now()-interval '7 days' AND rp.reputation >= $3
       AND r.author NOT IN (SELECT voter FROM dv) AND NOT (r.author = ANY($4))
-    ORDER BY random() LIMIT 40`, [FAMILY, group, minRaw, exclude]);
+      AND least(abs(hr.h - $5), 24 - abs(hr.h - $5)) <= $6
+    ORDER BY random() LIMIT 40`, [FAMILY, group, minRaw, exclude, new Date().getUTCHours(), HOUR_WINDOW]);
   await pg.end();
   return rows.map((r) => r.author);
 }
@@ -172,17 +195,22 @@ async function invite(state, snaps) {
   const group = (state.batches || 0) % TOP_EVERY === TOP_EVERY - 1 ? 'top75' : 'tail25';
   const extra = readJson(path.join(DIR, 'buzz-exclude.json'), []);
   const known = new Set([...Object.keys(state.invited), ...Object.keys(state.people), ...extra, ...FAMILY]);
-  const names = [];
-  let spanish = 0;
+  // people who are awake now (usual posting hour), grouped by language: the first language to fill 5 names wins
+  const byLang = {};
+  let names = [], lang = 'en';
   for (const n of (await candidates(group, [...known])).filter((x) => !known.has(x))) {
-    if (names.length >= NAMES_PER_INVITE) break;
     if (await mutedUs(n, sender)) { log(`- @${n} muted the swarm: skipped`); continue; }
-    names.push(n);
-    if (await writesSpanish(n)) spanish++;
+    let l = await language(n); if (!NATIVE[l]) l = 'en';           // no translation: English only
+    (byLang[l] = byLang[l] || []).push(n);
+    if (byLang[l].length >= NAMES_PER_INVITE) { names = byLang[l]; lang = l; break; }
   }
-  if (!names.length) { log('no new candidates'); return; }
-  const body = spanish ? INVITE_TEXT(names).replace('\n\n', '\n\n' + INVITE_ES) : INVITE_TEXT(names);
-  log(`📨 @${sender} (${group}): ${names.join(', ')}`);
+  if (!names.length) {   // nobody filled a group: take the biggest one
+    const best = Object.entries(byLang).sort((a, b) => b[1].length - a[1].length)[0];
+    if (best) { names = best[1]; lang = best[0]; }
+  }
+  if (!names.length) { log('no new candidates awake at this hour'); return; }
+  const body = INVITE_TEXT(names, lang);
+  log(`📨 @${sender} (${group}, ${lang}): ${names.join(', ')}`);
   if (!canBroadcast()) { log('   ' + body); return; }
   const permlink = `buzz-invite-${Date.now().toString(36)}`;
   try {
@@ -190,7 +218,7 @@ async function invite(state, snaps) {
       json_metadata: JSON.stringify({ app: 'buzzlist/1.0', tags: ['buzzlist'] }) }, key);
   } catch (e) { log(`✗ invitation failed: ${e.message.split('\n')[0]}`); return; }
   const at = new Date().toISOString();
-  for (const n of names) state.invited[n] = { bee: sender, at, permlink, group };
+  for (const n of names) state.invited[n] = { bee: sender, at, permlink, group, lang };
   bump(state, 'invited', names.length);
   state.last_invite = at; state.batches = (state.batches || 0) + 1;
   save(state);
