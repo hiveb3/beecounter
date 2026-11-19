@@ -1,4 +1,5 @@
 // Witness ranking recomputed by dropping votes from accounts inactive for N months/years.
+// Witnesses: top N ACTIVE ones (signing key set and a block produced in the last 30 days).
 // v2 activity = latest of:
 //   - last_vote_time, last_post, last_root_post, last_update (HAFSQL)
 //   - RC manabar last_update_time (rc_api): moves whenever the account pays RC for ANY
@@ -11,7 +12,8 @@ const { Client } = require('pg');
 const fs = require('fs');
 const DAY = 864e5;
 const CUTS = [['all', Infinity], ['6m', 182], ['1y', 365], ['2y', 730], ['3y', 1095], ['4y', 1461], ['5y', 1826]];
-const N = +(process.argv[2] || 50);
+const N = +(process.argv[2] || 100);
+const NULL_KEY = 'STM1111111111111111111111111111111114T1Anm';
 const NODES = ['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network'];
 const rpc = async (method, params) => {
   for (let t = 0; t < 6; t++) {
@@ -25,7 +27,10 @@ const rpc = async (method, params) => {
 };
 const log = (...a) => console.error(new Date().toISOString(), ...a);
 (async () => {
-  const list = await rpc('condenser_api.get_witnesses_by_vote', ['', N]);
+  const head = (await rpc('condenser_api.get_dynamic_global_properties', [])).head_block_number;
+  const all = await rpc('condenser_api.get_witnesses_by_vote', ['', 250]);
+  const list = all.filter(w => w.signing_key !== NULL_KEY && head - w.last_confirmed_block_num < 30 * 28800).slice(0, N);
+  log('active witnesses', list.length, 'of', all.length, 'last', list[list.length - 1].owner);
   const c = new Client({ host: 'hafsql-sql.mahdiyari.info', user: 'hafsql_public', password: 'hafsql_public', database: 'haf_block_log' });
   await c.connect();
   const proxied = {}; // proxy -> [names]
@@ -66,8 +71,8 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
   }
   log('rc newer than social activity for', rcHits, 'accounts');
   const now = Date.now();
-  const rows = list.map(w => {
-    const row = { witness: w.owner, chain_mvests: +w.votes / 1e12, voters: voters[w.owner].length };
+  const rows = list.map((w, i) => {
+    const row = { witness: w.owner, chain: i + 1, voters: voters[w.owner].length };
     for (const [k] of CUTS) { row[k] = 0; row['s' + k] = 0; }
     const add = n => {
       const a = info[n]; if (!a) return;
@@ -81,8 +86,6 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
     }
     return row;
   });
-  const rank = {};
-  for (const [k] of CUTS) [...rows].sort((a, b) => b[k] - a[k]).forEach((x, i) => { (rank[x.witness] ||= {})[k] = i + 1; });
   const dist = {}, distS = {}; let tot = 0;
   for (const n of need) {
     const a = info[n]; if (!a) continue; tot += a.hp;
@@ -92,7 +95,7 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
   fs.writeFileSync('witness-activity.json', JSON.stringify(res, null, 1));
   const M = x => (x / 1e6).toFixed(2);
   console.log(`tot ${M(tot)} | ` + CUTS.map(([k]) => `${k} ${M(dist[k] || 0)}/${M(distS[k] || 0)}`).join(' | ') + ` | rcHits ${rcHits}`);
-  console.log('witness,voters,' + CUTS.map(([k]) => k).join(','));
-  for (const r of rows) console.log([r.witness, r.voters, ...CUTS.map(([k]) => M(r[k]))].join(','));
+  console.log('witness,voters,' + CUTS.map(([k]) => k).join(',') + ',social6m');
+  for (const r of rows) console.log([r.witness, r.voters, ...CUTS.map(([k]) => M(r[k])), M(r.s6m)].join(','));
   log('done');
 })().catch(e => { log('ERR', e.message); process.exit(1); });
