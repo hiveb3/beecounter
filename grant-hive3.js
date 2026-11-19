@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-// Aggiunge @hive3 come authority (posting o, con --active, active) a tutti gli account di servizio di @hive3.
-// Uso:  cd /root/beecounter && git pull && node grant-hive3.js [--active] [--dry]   (dhive già installato per publish.js)
-// Per ogni account chiede la ACTIVE key (o la OWNER key con --active), input nascosto, mai salvata. Invio vuoto = salta.
+// Adds @hive3 as an authority (posting, or active with --active) to every account of the hive3 swarm.
+// Usage:  cd /root/beecounter && git pull && node grant-hive3.js [--active] [--dry]   (dhive is already installed for publish.js)
+// For each account it asks for the ACTIVE key (or the OWNER key with --active): hidden input, never saved. Empty = skip.
 
 const dhive = require('@hiveio/dhive');
 const readline = require('readline');
 
 const AUTHORITY = 'hive3';
-// Tutti gli account di servizio di @hive3 (verificati on-chain, 12 nov 2026)
+// Every account of the hive3 swarm (checked on chain, Nov 2026)
 const ACCOUNTS = [
-  'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beecounter', 'scoutbee', // creati da hive3
-  'hivethree', 'hive-3', 'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron',    // creati da altri
+  'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beecounter', 'scoutbee', // created by hive3
+  'hivethree', 'hive-3', 'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron',    // created by others
+  'ant-thebeekeeper', 'blurtbee',                                             // the voices of the swarm
 ];
-// --active: dà a @hive3 anche l'autorità ACTIVE (trasferimenti, deleghe...). Richiede la OWNER key.
+// --active: also gives @hive3 the ACTIVE authority (transfers, delegations...). Needs the OWNER key.
 const ROLE = process.argv.includes('--active') ? 'active' : 'posting';
 const SIGNER = ROLE === 'active' ? 'owner' : 'active';
 const DRY = process.argv.includes('--dry');
@@ -32,29 +33,29 @@ function askHidden(q) {
   const accounts = await client.database.getAccounts(ACCOUNTS);
   for (const name of ACCOUNTS) {
     const acc = accounts.find((a) => a.name === name);
-    if (!acc) { console.log(`✗ ${name}: non esiste, salto`); continue; }
+    if (!acc) { console.log(`✗ ${name}: does not exist, skipped`); continue; }
 
     const auth = JSON.parse(JSON.stringify(acc[ROLE]));
     if (auth.account_auths.some(([n]) => n === AUTHORITY)) {
-      console.log(`= ${name}: @${AUTHORITY} già presente`); continue;
+      console.log(`= ${name}: @${AUTHORITY} already there`); continue;
     }
-    auth.account_auths.push([AUTHORITY, auth.weight_threshold]); // hive3 da solo basta a firmare
-    auth.account_auths.sort((a, b) => (a[0] < b[0] ? -1 : 1));     // la blockchain vuole l'ordine alfabetico
+    auth.account_auths.push([AUTHORITY, auth.weight_threshold]); // hive3 alone is enough to sign
+    auth.account_auths.sort((a, b) => (a[0] < b[0] ? -1 : 1));     // the chain wants alphabetical order
 
-    if (DRY) { console.log(`~ ${name}: nuova ${ROLE} authority`, JSON.stringify(auth.account_auths)); continue; }
+    if (DRY) { console.log(`~ ${name}: new ${ROLE} authority`, JSON.stringify(auth.account_auths)); continue; }
 
-    const wif = await askHidden(`${SIGNER.toUpperCase()} key di @${name} (invio = salta): `);
-    if (!wif) { console.log(`- ${name}: saltato`); continue; }
+    const wif = await askHidden(`${SIGNER.toUpperCase()} key of @${name} (enter = skip): `);
+    if (!wif) { console.log(`- ${name}: skipped`); continue; }
     let key;
-    try { key = dhive.PrivateKey.fromString(wif); } catch { console.log(`✗ ${name}: chiave non valida`); continue; }
+    try { key = dhive.PrivateKey.fromString(wif); } catch { console.log(`✗ ${name}: invalid key`); continue; }
     const pub = key.createPublic().toString();
-    if (!acc[SIGNER].key_auths.some(([k]) => k === pub)) { console.log(`✗ ${name}: non è la ${SIGNER} key di questo account`); continue; }
+    if (!acc[SIGNER].key_auths.some(([k]) => k === pub)) { console.log(`✗ ${name}: not the ${SIGNER} key of this account`); continue; }
 
     try {
       const r = await client.broadcast.updateAccount({
         account: name, [ROLE]: auth, memo_key: acc.memo_key, json_metadata: acc.json_metadata,
       }, key);
-      console.log(`✓ ${name}: @${AUTHORITY} aggiunto come ${ROLE} (tx ${r.id})`);
+      console.log(`✓ ${name}: @${AUTHORITY} added as ${ROLE} (tx ${r.id})`);
     } catch (e) { console.log(`✗ ${name}: ${e.message}`); }
   }
 })();
