@@ -6,7 +6,7 @@
 //   1. reads the replies under each opt-in snap: 🐝 = opt in, 🚫 = opt out (the chain is the register)
 //   2. thank-you vote, ONCE per person, ever: the inviting bee at 100%, other bees added until >= $0.03
 //      (opt-out / opt-in again never earns a second vote)
-//   3. invitations: one bee per run, max 5 names, only in daytime (11-24 UTC), each person tagged ONCE in total
+//   3. invitations: one bee per run, max 5 names, around the clock, each person tagged ONCE in total
 //      across the whole swarm; people who already replied (even without an invite) are never invited
 //
 // Usage (VPS):  /opt/hive-block-producer/run-with-key.sh /root/beecounter/buzz.js [--live]
@@ -28,8 +28,8 @@ const FAMILY = ['hive3', 'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beec
   'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron', 'ant-thebeekeeper', 'blurtbee'];
 const VOTERS = FAMILY;                // every bee of the swarm can hand out honey, @hive3.guard included
 const NAMES_PER_INVITE = 5;
-const INVITE_EVERY_MIN = 14;           // one invitation per run (the timer runs every 15 min): ~250 people a day
-const DAY_UTC = [11, 24];              // invitations only 11:00-24:00 UTC (8:00-21:00 in Argentina)
+const INVITE_EVERY_MIN = 14;           // one invitation per run (the timer runs every 15 min)
+const DAY_UTC = [0, 24];               // invitations around the clock
 const TOP_EVERY = 5;                   // every 5th invitation goes to the 75% group, the others to the 25% tail
 const THANK_USD = 0.03;
 const MAX_THANKS_PER_RUN = 10;
