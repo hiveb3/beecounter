@@ -26,7 +26,7 @@ const STOP_FILE = path.join(DIR, 'BUZZ_STOP');
 
 const FAMILY = ['hive3', 'hive-170283', 'aibees', 'ai-bee', 'hive3.guard', 'beecounter', 'scoutbee', 'hivethree', 'hive-3',
   'hive2bee3', 'hive.bee-3', 'bz3', 'pollenpatron', 'ant-thebeekeeper', 'blurtbee'];
-const VOTERS = FAMILY.filter((a) => a !== 'hive3.guard');   // the security bot never hands out honey
+const VOTERS = FAMILY;                // every bee of the swarm can hand out honey, @hive3.guard included
 const NAMES_PER_INVITE = 5;
 const INVITE_EVERY_MIN = 110;          // one invitation per run (the timer runs every 2 h)
 const DAY_UTC = [12, 23];              // invitations only 12:00-23:00 UTC (daytime in Argentina)
