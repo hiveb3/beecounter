@@ -1,1 +1,7 @@
-{ "snaps": { "hive3": "re-peaksnaps-torjbj" } }
+{ "snaps": {
+  "hive3": "re-peaksnaps-torjbj",
+  "ant-thebeekeeper": "re-peaksnaps-tormgt",
+  "blurtbee": "re-peaksnaps-tormjk",
+  "beecounter": "re-peaksnaps-tormkh",
+  "scoutbee": "re-peaksnaps-tormm5"
+} }
