@@ -7,7 +7,7 @@
 #
 #   {"op": "hive",   "method": "bridge.get_discussion", "params": {...}}     Hive API, allowed methods only
 #   {"op": "url",    "url": "https://...", "mode": "text"|"raw"|"image"}      download a page (text = HTML stripped) or an image
-#   {"op": "sql",    "query": "SELECT ..."}                                    HAFSQL public, read-only, max 5000 rows
+#   {"op": "sql",    "query": "SELECT ...", "timeout": 600}                    HAFSQL public, read-only, max 5000 rows
 #   {"op": "report", "file": "money_report.txt", "tail": 200}                  read a report from /root/beecounter (*.txt, *.json, *.csv)
 import json, os, re, time, subprocess, urllib.request, urllib.error, html, datetime as dt, traceback, glob
 
@@ -71,10 +71,12 @@ def op_sql(q):
     import psycopg2
     con = psycopg2.connect(host='hafsql-sql.mahdiyari.info', port=5432, dbname='haf_block_log',
                            user='hafsql_public', password='hafsql_public', connect_timeout=30)
-    con.set_session(readonly=True, autocommit=True)
-    cur = con.cursor(); cur.execute("SET statement_timeout = '600s'")
+    # one transaction: with a connection pooler (pgbouncer) a plain SET can be lost between statements,
+    # SET LOCAL inside the same transaction is not
+    con.set_session(readonly=True, autocommit=False)
+    cur = con.cursor(); cur.execute("SET LOCAL statement_timeout = %s", (f"{min(int(q.get('timeout', 600)), 900)}s",))
     cur.execute(s); cols = [c[0] for c in cur.description]; rows = cur.fetchmany(5000)
-    con.close()
+    con.rollback(); con.close()
     return {'columns': cols, 'rows': [[str(x) if x is not None else None for x in r] for r in rows], 'row_count': len(rows)}
 
 def op_report(q):
