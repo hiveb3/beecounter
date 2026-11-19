@@ -38,7 +38,10 @@ const MIN_LEFT_H = 13;                 // a reply closer than this to payout can
 
 const INVITE_TEXT = (names) =>
   `🐝 ${names.map((n) => '@' + n).join(' ')}: one-time hello from the swarm. We share rewards & governance data. ` +
-  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯`;
+  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯\n\n` +
+  `![Ant](https://images.hive.blog/u/ant-thebeekeeper/avatar/small) Ant\n\n` +
+  `<sub>Automated one-time invitation from the hive3 swarm, run by Ant (human, AI-assisted). ` +
+  `No reply = no more tags. Joining earns a single thank-you vote, once.</sub>`;
 
 const client = new dhive.Client(['https://api.hive.blog', 'https://api.deathwing.me', 'https://api.openhive.network']);
 const key = process.env.HIVE3_POSTING_KEY ? dhive.PrivateKey.fromString(process.env.HIVE3_POSTING_KEY) : null;
