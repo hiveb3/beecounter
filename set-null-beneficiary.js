@@ -28,7 +28,7 @@ const key = process.env.HIVE3_POSTING_KEY ? dhive.PrivateKey.fromString(process.
     const c = await client.call('condenser_api', 'get_content', [author, permlink]);
     if (!c || !c.author) { console.log(`? @${author}/${permlink}: not found`); continue; }
     if ((c.beneficiaries || []).some((b) => b.account === 'null' && b.weight === 10000)) { done++; continue; }
-    if (c.last_payout && !c.last_payout.startsWith('1970')) { paid++; console.log(`- @${author}/${permlink}: already paid out`); continue; }
+    if (Date.parse(c.last_payout + 'Z') > 0) { paid++; console.log(`- @${author}/${permlink}: already paid out`); continue; }
     if ((c.beneficiaries || []).length) { console.log(`✗ @${author}/${permlink}: has other beneficiaries, can't change`); continue; }
     if (Number(c.abs_rshares) !== 0 || (c.active_votes || []).length) {
       voted++; console.log(`✗ @${author}/${permlink}: already voted (${c.active_votes.length}), Hive no longer accepts beneficiaries`); continue; }
