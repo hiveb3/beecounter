@@ -36,6 +36,7 @@ const DAY_UTC = [0, 24];               // invitations around the clock
 const TOP_EVERY = 5;                   // every 5th invitation goes to the 75% group, the others to the 25% tail
 const THANK_USD = 0.03;
 const MAX_THANKS_PER_RUN = 10;
+const MAX_BEES_PER_THANK = 2;        // never a crowd of bees on one reply (it looks like a voting ring); ~$0.03 is close enough
 const MIN_REP = 40;                    // reputation score
 const MIN_LEFT_H = 13;                 // a reply closer than this to payout can't be voted any more
 
@@ -146,7 +147,7 @@ async function thank(state) {
     const order = [bees.find((b) => b.name === inviter), ...bees.filter((b) => b.name !== inviter && b.vp >= 80).sort((a, b) => b.vp - a.vp)]
       .filter(Boolean);
     const plan = []; let usd = 0;
-    for (const b of order) { if (usd >= THANK_USD) break; plan.push(b); usd += b.full * usdPerRshare; }
+    for (const b of order) { if (usd >= THANK_USD * 0.9 || plan.length >= MAX_BEES_PER_THANK) break; plan.push(b); usd += b.full * usdPerRshare; }
     log(`🍯 @${u}: ${plan.map((b) => '@' + b.name).join(', ')} ≈ $${usd.toFixed(3)}`);
     if (!canBroadcast()) continue;
     const done = [];
