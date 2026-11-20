@@ -41,8 +41,10 @@ const MIN_LEFT_H = 13;                 // a reply closer than this to payout can
 
 // Invitations speak the invitee's language first, then English.
 // Languages with a translation: es, pt, de, fr, pl. Every other language gets English only.
+const POLICY = '/hive-170283/@hive3/our-swarm-policy-how-the-hive3-bees-vote-tag-and-guard-out-in-the-open';   // relative: readers stay on their front-end
 const EN = `One-time hello from the swarm. We share rewards & governance data. ` +
-  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯`;
+  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯\n\n` +
+  `What is this? 👉 [Our swarm policy](${POLICY})`;
 const NATIVE = {
   es: `Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ¿Quieres novedades? Responde 🐝 al snap de arriba. No te volveremos a etiquetar si no dices que sí. 🍯`,
   pt: `Um olá único do enxame: partilhamos dados sobre recompensas e governança. Quer novidades? Responda 🐝 ao snap acima. Não voltaremos a marcar você se não disser que sim. 🍯`,
