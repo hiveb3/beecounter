@@ -43,14 +43,14 @@ const MIN_LEFT_H = 13;                 // a reply closer than this to payout can
 // Languages with a translation: es, pt, de, fr, pl. Every other language gets English only.
 const POLICY = '/hive-170283/@hive3/our-swarm-policy-how-the-hive3-bees-vote-tag-and-guard-out-in-the-open';   // relative: readers stay on their front-end
 const EN = `One-time hello from the swarm. We share rewards & governance data. ` +
-  `Want updates? Reply 🐝 to the snap above. We won't tag you again unless you say yes. 🍯\n\n` +
+  `Want updates? Copy-paste the bee 🐝 as your reply to the snap above. We won't tag you again unless you say yes. 🍯\n\n` +
   `What is this? 👉 [Our swarm policy](${POLICY})`;
 const NATIVE = {
-  es: `Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ¿Quieres novedades? Responde 🐝 al snap de arriba. No te volveremos a etiquetar si no dices que sí. 🍯`,
-  pt: `Um olá único do enxame: partilhamos dados sobre recompensas e governança. Quer novidades? Responda 🐝 ao snap acima. Não voltaremos a marcar você se não disser que sim. 🍯`,
-  de: `Ein einmaliges Hallo vom Schwarm: Wir teilen Daten zu Rewards und Governance. Möchtest du Updates? Antworte mit 🐝 auf den Snap oben. Ohne dein Ja markieren wir dich nie wieder. 🍯`,
-  fr: `Un bonjour unique de l'essaim : nous partageons des données sur les récompenses et la gouvernance. Envie de nouvelles ? Réponds 🐝 au snap ci-dessus. Sans ton oui, on ne te taguera plus jamais. 🍯`,
-  pl: `Jednorazowe cześć od roju: dzielimy się danymi o nagrodach i zarządzaniu. Chcesz nowości? Odpowiedz 🐝 pod snapem powyżej. Bez twojego tak nie oznaczymy cię ponownie. 🍯`,
+  es: `Un saludo único del enjambre: compartimos datos sobre recompensas y gobernanza. ¿Quieres novedades? Copia y pega la abeja 🐝 como respuesta al snap de arriba. No te volveremos a etiquetar si no dices que sí. 🍯`,
+  pt: `Um olá único do enxame: partilhamos dados sobre recompensas e governança. Quer novidades? Copie e cole a abelha 🐝 como resposta ao snap acima. Não voltaremos a marcar você se não disser que sim. 🍯`,
+  de: `Ein einmaliges Hallo vom Schwarm: Wir teilen Daten zu Rewards und Governance. Möchtest du Updates? Kopiere die Biene 🐝 als Antwort unter den Snap oben. Ohne dein Ja markieren wir dich nie wieder. 🍯`,
+  fr: `Un bonjour unique de l'essaim : nous partageons des données sur les récompenses et la gouvernance. Envie de nouvelles ? Copie-colle l'abeille 🐝 en réponse au snap ci-dessus. Sans ton oui, on ne te taguera plus jamais. 🍯`,
+  pl: `Jednorazowe cześć od roju: dzielimy się danymi o nagrodach i zarządzaniu. Chcesz nowości? Skopiuj pszczołę 🐝 jako odpowiedź pod snapem powyżej. Bez twojego tak nie oznaczymy cię ponownie. 🍯`,
 };
 const LANG_WORDS = {
   es: /\b(que|los|las|para|con|una|por|pero|como|está|también|muy|del|hoy|gracias)\b/g,
@@ -93,6 +93,10 @@ function verdict(body) {
   const b = String(body || '').toLowerCase();
   if (b.includes('🚫') || /\bopt[ -]?out\b|\bstop tagging\b|\bunsubscribe\b/.test(b)) return 'out';
   if (b.includes('🐝') || /\bopt[ -]?in\b|\bbuzz me\b|\bsubscribe\b/.test(b)) return 'in';
+  // a short "yes" in any of our languages counts too (people often write it instead of pasting the bee)
+  const t = b.replace(/[^\p{L}\s]/gu, ' ').trim();
+  if (t.split(/\s+/).length <= 4 && /^(yes|yep|yeah|sure|ok|okay|si|sí|sim|ja|oui|tak)(?=\s|$)/.test(t)) return 'in';
+  if (t.split(/\s+/).length <= 4 && /^(no|nope|não|nao|nein|non|nie)(?=\s|$)/.test(t)) return 'out';
   return null;
 }
 
